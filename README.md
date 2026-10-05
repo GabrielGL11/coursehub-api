@@ -1,114 +1,879 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sistema de Gestión Académica - CourseHub API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST desarrollada con **NestJS**, **TypeScript**, **PostgreSQL** y **TypeORM** para gestionar estudiantes, cursos y matrículas académicas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+El proyecto forma parte de la práctica de **Desarrollo Backend Web con NestJS**, enfocada en la implementación de persistencia de datos mediante PostgreSQL y TypeORM.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tecnologías utilizadas
 
-## Project setup
+* **NestJS**
+* **TypeScript**
+* **Node.js**
+* **PostgreSQL**
+* **TypeORM**
+* **class-validator**
+* **class-transformer**
+* **Thunder Client** para pruebas de la API
+* **pgAdmin** para administrar y verificar la base de datos
 
-```bash
-$ npm install
+---
+
+## Descripción del proyecto
+
+El sistema permite gestionar:
+
+* Estudiantes.
+* Cursos.
+* Matrículas.
+
+La aplicación implementa una API REST donde los datos se almacenan de forma persistente en **PostgreSQL** mediante **TypeORM**.
+
+La relación principal del sistema es:
+
+```text
+Student
+   │
+   │ 1:N
+   ▼
+Enrollment
+   ▲
+   │ N:1
+   │
+Course
 ```
 
-## Compile and run the project
+Un estudiante puede tener varias matrículas y un curso puede tener varios estudiantes matriculados.
 
-```bash
-# development
-$ npm run start
+---
 
-# watch mode
-$ npm run start:dev
+## Arquitectura
 
-# production mode
-$ npm run start:prod
+El proyecto utiliza la estructura modular de NestJS:
+
+```text
+Cliente
+   │
+   ▼
+Controller
+   │
+   ▼
+Service
+   │
+   ▼
+Repository / TypeORM
+   │
+   ▼
+PostgreSQL
 ```
 
-## Run tests
+### Flujo de una solicitud
 
-```bash
-# unit tests
-$ npm run test
+Por ejemplo, al crear una matrícula:
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```text
+POST /enrollments
+        │
+        ▼
+EnrollmentsController
+        │
+        ▼
+EnrollmentsService
+        │
+        ├── Verifica que el estudiante exista
+        ├── Verifica que el estudiante esté activo
+        ├── Verifica que el curso exista
+        ├── Verifica que no exista una matrícula duplicada
+        │
+        ▼
+TypeORM Repository
+        │
+        ▼
+PostgreSQL
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+# Módulos principales
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Students
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+Gestiona la información de los estudiantes.
+
+Cada estudiante contiene:
+
+* `id`
+* `name`
+* `email`
+* `age`
+* `career`
+* `semester`
+* `isActive`
+
+Ejemplo:
+
+```json
+{
+  "id": 3,
+  "name": "Carlos Mendoza",
+  "email": "carlos.mendoza@example.edu",
+  "age": 22,
+  "career": "Software",
+  "semester": 5,
+  "isActive": true
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Observability
+## Courses
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Gestiona los cursos disponibles.
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+Cada curso contiene:
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+* `id`
+* `title`
+* `level`
 
-## Resources
+Ejemplo:
 
-Check out a few resources that may come in handy when working with NestJS:
+```json
+{
+  "id": 3,
+  "title": "Desarrollo Backend con NestJS",
+  "level": "intermediate"
+}
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+## Enrollments
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Gestiona las matrículas entre estudiantes y cursos.
 
-## Stay in touch
+Cada matrícula relaciona:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```text
+studentId
+courseId
+```
 
-## License
+La entidad `Enrollment` utiliza relaciones `ManyToOne` con:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+* `Student`
+* `Course`
+
+Ejemplo:
+
+```text
+Student 1 ──────── N Enrollment N ──────── 1 Course
+```
+
+---
+
+# Persistencia con PostgreSQL y TypeORM
+
+El proyecto utiliza **PostgreSQL** como sistema de gestión de base de datos.
+
+TypeORM permite conectar las entidades de NestJS con las tablas de PostgreSQL.
+
+Las principales tablas utilizadas son:
+
+```text
+students
+courses
+enrollments
+```
+
+La tabla `enrollments` mantiene las relaciones entre estudiantes y cursos.
+
+La configuración de la conexión se realiza mediante variables de entorno.
+
+Ejemplo de configuración:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=coursehub
+DATABASE_USER=postgres
+DATABASE_PASSWORD=********
+```
+
+> La contraseña real no debe subirse al repositorio.
+
+Se recomienda mantener las credenciales reales en `.env` y utilizar `.env.example` como plantilla.
+
+---
+
+# Configuración del proyecto
+
+## 1. Instalar dependencias
+
+```bash
+npm install
+```
+
+## 2. Configurar PostgreSQL
+
+Crear una base de datos PostgreSQL y configurar las variables correspondientes en `.env`.
+
+Ejemplo:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=coursehub
+DATABASE_USER=postgres
+DATABASE_PASSWORD=tu_password
+```
+
+## 3. Ejecutar el proyecto
+
+### Modo desarrollo
+
+```bash
+npm run start
+```
+
+### Modo watch
+
+```bash
+npm run start:dev
+```
+
+### Modo producción
+
+```bash
+npm run start:prod
+```
+
+La API se ejecuta actualmente en:
+
+```text
+http://localhost:3000
+```
+
+---
+
+# Endpoints principales
+
+## Students
+
+### Obtener todos los estudiantes
+
+```http
+GET /students
+```
+
+### Obtener un estudiante
+
+```http
+GET /students/:id
+```
+
+### Crear un estudiante
+
+```http
+POST /students
+```
+
+Ejemplo:
+
+```json
+{
+  "name": "Carlos Mendoza",
+  "email": "carlos.mendoza@example.edu",
+  "age": 22,
+  "career": "Software",
+  "semester": 5,
+  "isActive": true
+}
+```
+
+### Actualizar el estado de un estudiante
+
+```http
+PATCH /students/:id/status
+```
+
+---
+
+# Courses
+
+### Obtener todos los cursos
+
+```http
+GET /courses
+```
+
+### Obtener un curso
+
+```http
+GET /courses/:id
+```
+
+### Crear un curso
+
+```http
+POST /courses
+```
+
+Ejemplo:
+
+```json
+{
+  "title": "Desarrollo Backend con NestJS",
+  "level": "intermediate"
+}
+```
+
+---
+
+# Enrollments
+
+## Crear una matrícula
+
+```http
+POST /enrollments
+```
+
+Ejemplo:
+
+```json
+{
+  "studentId": 3,
+  "courseId": 3
+}
+```
+
+La API verifica:
+
+1. Que el estudiante exista.
+2. Que el estudiante esté activo.
+3. Que el curso exista.
+4. Que no exista una matrícula previa para el mismo estudiante y curso.
+
+---
+
+## Consultar todas las matrículas
+
+```http
+GET /enrollments
+```
+
+---
+
+## Filtrar por estudiante
+
+```http
+GET /enrollments?studentId=3
+```
+
+---
+
+## Filtrar por curso
+
+```http
+GET /enrollments?courseId=3
+```
+
+También existen rutas específicas:
+
+```http
+GET /students/:studentId/enrollments
+```
+
+```http
+GET /courses/:courseId/enrollments
+```
+
+---
+
+## Cancelar una matrícula
+
+```http
+DELETE /enrollments/:id
+```
+
+Ejemplo:
+
+```http
+DELETE /enrollments/1
+```
+
+---
+
+# Validaciones de matrículas
+
+El sistema evita que se realicen operaciones inválidas.
+
+## Estudiante inexistente
+
+Si se intenta matricular un estudiante que no existe, la API devuelve un error.
+
+## Curso inexistente
+
+Si se intenta utilizar un curso que no existe, la API devuelve un error.
+
+## Estudiante inactivo
+
+Un estudiante con:
+
+```json
+{
+  "isActive": false
+}
+```
+
+no puede ser matriculado.
+
+La API devuelve actualmente:
+
+```json
+{
+  "message": "No se puede matricular un estudiante inactivo",
+  "error": "Conflict",
+  "statusCode": 409
+}
+```
+
+## Matrícula duplicada
+
+No se permite registrar dos veces la misma combinación:
+
+```text
+studentId + courseId
+```
+
+Si se intenta realizar una matrícula duplicada, la API devuelve:
+
+```json
+{
+  "message": "El estudiante ya está matriculado en este curso",
+  "error": "Conflict",
+  "statusCode": 409
+}
+```
+
+---
+
+# Práctica de persistencia y matrículas
+
+Como parte de la práctica de la Semana 5 se verificó el funcionamiento de la persistencia utilizando PostgreSQL y TypeORM.
+
+## 1. Crear un curso y un estudiante activo
+
+Se creó un estudiante:
+
+```text
+Nombre: Carlos Mendoza
+ID: 3
+Estado: activo
+```
+
+Y un curso:
+
+```text
+Título: Desarrollo Backend con NestJS
+ID: 3
+Nivel: intermediate
+```
+
+---
+
+## 2. Crear una matrícula válida
+
+Se utilizó:
+
+```json
+{
+  "studentId": 3,
+  "courseId": 3
+}
+```
+
+La matrícula fue almacenada correctamente en PostgreSQL.
+
+---
+
+## 3. Reiniciar la API
+
+Se detuvo la aplicación y se volvió a iniciar:
+
+```bash
+npm run start:dev
+```
+
+Posteriormente se realizó:
+
+```http
+GET /enrollments
+```
+
+La matrícula continuó disponible.
+
+Esto demuestra que los datos son persistentes y no dependen de un arreglo almacenado únicamente en memoria.
+
+---
+
+## 4. Intentar una matrícula duplicada
+
+Se volvió a enviar:
+
+```json
+{
+  "studentId": 3,
+  "courseId": 3
+}
+```
+
+La API respondió:
+
+```json
+{
+  "message": "El estudiante ya está matriculado en este curso",
+  "error": "Conflict",
+  "statusCode": 409
+}
+```
+
+Se comprobó correctamente el rechazo de matrículas duplicadas.
+
+---
+
+## 5. Intentar matricular un estudiante inactivo
+
+Se desactivó el estudiante correspondiente y posteriormente se intentó crear una matrícula.
+
+La API respondió:
+
+```json
+{
+  "message": "No se puede matricular un estudiante inactivo",
+  "error": "Conflict",
+  "statusCode": 409
+}
+```
+
+La operación fue rechazada correctamente.
+
+---
+
+## 6. Filtrar matrículas
+
+### Por estudiante
+
+```http
+GET /enrollments?studentId=3
+```
+
+Resultado:
+
+```json
+[
+  {
+    "id": 1,
+    "studentId": 3,
+    "courseId": 3
+  }
+]
+```
+
+### Por curso
+
+```http
+GET /enrollments?courseId=3
+```
+
+La API devolvió la matrícula correspondiente al curso indicado.
+
+---
+
+## 7. Cancelar una matrícula
+
+Se utilizó:
+
+```http
+DELETE /enrollments/1
+```
+
+Posteriormente:
+
+```http
+GET /enrollments
+```
+
+La matrícula eliminada dejó de aparecer.
+
+Esto permitió comprobar que la operación de cancelación funciona correctamente y que el registro fue eliminado de PostgreSQL.
+
+---
+
+# Ejemplo completo del flujo
+
+```text
+1. Crear Student
+       ↓
+2. Crear Course
+       ↓
+3. Crear Enrollment
+       ↓
+4. Guardar en PostgreSQL
+       ↓
+5. Reiniciar API
+       ↓
+6. Consultar Enrollment
+       ↓
+7. Intentar duplicar
+       ↓
+   409 Conflict
+       ↓
+8. Desactivar Student
+       ↓
+9. Intentar matricular
+       ↓
+   Error
+       ↓
+10. Filtrar Enrollment
+       ↓
+11. Cancelar Enrollment
+       ↓
+12. Verificar que ya no existe
+```
+
+---
+
+# Estructura del proyecto
+
+```text
+src/
+├── courses/
+│   ├── dto/
+│   ├── entities/
+│   │   └── course.entity.ts
+│   ├── courses.controller.ts
+│   ├── courses.module.ts
+│   └── courses.service.ts
+│
+├── students/
+│   ├── dto/
+│   ├── entities/
+│   │   └── student.entity.ts
+│   ├── students.controller.ts
+│   ├── students.module.ts
+│   └── students.service.ts
+│
+├── enrollments/
+│   ├── dto/
+│   │   └── create-enrollment.dto.ts
+│   ├── entities/
+│   │   └── enrollment.entity.ts
+│   ├── enrollments.controller.ts
+│   ├── enrollments.module.ts
+│   └── enrollments.service.ts
+│
+├── app.module.ts
+└── main.ts
+```
+
+---
+
+# Flujo de datos
+
+```text
+                 ┌─────────────────┐
+                 │     Cliente     │
+                 │ Thunder Client  │
+                 └────────┬────────┘
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │   Controller    │
+                 └────────┬────────┘
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │     Service     │
+                 └────────┬────────┘
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │     TypeORM     │
+                 │   Repository    │
+                 └────────┬────────┘
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │   PostgreSQL    │
+                 └─────────────────┘
+```
+
+---
+
+# Pruebas realizadas
+
+Las pruebas de la API se realizaron utilizando **Thunder Client**.
+
+Se verificaron:
+
+* Creación de estudiantes.
+* Creación de cursos.
+* Creación de matrículas.
+* Persistencia después de reiniciar la API.
+* Rechazo de matrículas duplicadas.
+* Rechazo de estudiantes inactivos.
+* Filtrado por estudiante.
+* Filtrado por curso.
+* Cancelación de matrículas.
+* Verificación de eliminación.
+
+---
+
+# Base de datos
+
+La aplicación utiliza PostgreSQL para almacenar permanentemente la información.
+
+Tablas principales:
+
+```text
+students
+courses
+enrollments
+```
+
+Relación:
+
+```text
+students
+   │
+   │
+   └──────< enrollments >──────┐
+                               │
+                               │
+                            courses
+```
+
+La tabla `enrollments` funciona como entidad intermedia entre estudiantes y cursos.
+
+---
+
+# Seguridad de credenciales
+
+Las credenciales de PostgreSQL no deben almacenarse directamente en el código fuente.
+
+El archivo:
+
+```text
+.env
+```
+
+debe permanecer fuera del repositorio cuando contiene credenciales reales.
+
+Se recomienda utilizar:
+
+```text
+.env.example
+```
+
+como plantilla para otros integrantes del proyecto.
+
+Ejemplo:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=coursehub
+DATABASE_USER=postgres
+DATABASE_PASSWORD=your_password_here
+```
+
+---
+
+# Comandos útiles
+
+Instalar dependencias:
+
+```bash
+npm install
+```
+
+Ejecutar en desarrollo:
+
+```bash
+npm run start:dev
+```
+
+Compilar:
+
+```bash
+npm run build
+```
+
+Ejecutar producción:
+
+```bash
+npm run start:prod
+```
+
+Ejecutar pruebas:
+
+```bash
+npm run test
+```
+
+Pruebas end-to-end:
+
+```bash
+npm run test:e2e
+```
+
+Cobertura:
+
+```bash
+npm run test:cov
+```
+
+---
+
+# Documentación
+
+Documentación oficial de NestJS:
+
+https://docs.nestjs.com
+
+Documentación de TypeORM:
+
+https://typeorm.io
+
+Documentación de PostgreSQL:
+
+https://www.postgresql.org/docs/
+
+---
+
+# Estado del proyecto
+
+Actualmente el proyecto cuenta con:
+
+* API REST desarrollada con NestJS.
+* Módulo de estudiantes.
+* Módulo de cursos.
+* Módulo de matrículas.
+* DTOs para creación de matrículas.
+* Validación de datos.
+* Relaciones entre estudiantes, cursos y matrículas.
+* Persistencia mediante PostgreSQL.
+* Integración con TypeORM.
+* Consulta y filtrado de matrículas.
+* Validación de estudiantes activos.
+* Control de matrículas duplicadas.
+* Cancelación de matrículas.
+* Verificación de persistencia después del reinicio de la API.
+
+---
+
+# Licencia
+
+Este proyecto se desarrolla con fines académicos para la práctica de desarrollo backend con NestJS.
