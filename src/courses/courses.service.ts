@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
+import { CoursesQueryDto } from './dto/courses-query.dto.js';
 import { Course } from './entities/course.entity.js';
 
 @Injectable()
@@ -11,17 +12,41 @@ export class CoursesService {
         @InjectRepository(Course)
         private readonly coursesRepository: Repository<Course>,
     ) {}
-    findAll(level?: string) {
-        return this.coursesRepository.find({
-        where: level ? { level } : {},
-        });
+    async findAll(query: CoursesQueryDto) {
+        const {
+            level,
+            page,
+            limit,
+            sortBy,
+            order,
+        } = query;
+        const [items, total] =
+            await this.coursesRepository.findAndCount({
+                where: level ? { level } : {},
+                order: {
+                    [sortBy]: order,
+                },
+                skip: (page - 1) * limit,
+                take: limit,
+            });
+        return {
+            items,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
     async findOne(id: number): Promise<Course> {
         const course = await this.coursesRepository.findOneBy({
-        id,
+            id,
         });
         if (!course) {
-        throw new NotFoundException(`Course ${id} not found`);
+            throw new NotFoundException(
+                `Course ${id} not found`,
+            );
         }
         return course;
     }
@@ -31,8 +56,8 @@ export class CoursesService {
     }
     async update(id: number, dto: UpdateCourseDto) {
         const course = await this.findOne(id);
-    Object.assign(course, dto);
-    return this.coursesRepository.save(course);
+        Object.assign(course, dto);
+        return this.coursesRepository.save(course);
     }
     async remove(id: number) {
         const course = await this.findOne(id);
