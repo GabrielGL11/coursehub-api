@@ -1,22 +1,27 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
+﻿import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { AppController } from './../src/app.controller.js';
+import { AppService } from './../src/app.service.js';
 
-describe('AppController', () => {
-  let appController: AppController;
-
-  beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
       providers: [AppService],
     }).compile();
-
-    appController = app.get<AppController>(AppController);
+    app = moduleFixture.createNestApplication();
+    await app.init();
   });
-
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
-    });
+  it('GET / debe responder 200 con CourseHub API está en línea', async () => {
+    await request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('CourseHub API está en línea');
+  });
+  afterAll(async () => {
+    await app.close();
   });
 });
