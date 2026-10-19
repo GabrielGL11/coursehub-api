@@ -6,9 +6,9 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y registro inicial de usuarios con almacenamiento seguro de contraseñas.
 
-Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**. Incluye persistencia de datos, relaciones entre entidades, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y configuración mediante variables de entorno.
+Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
 ## Tabla de contenidos
 
@@ -18,10 +18,12 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Instalación y configuración](#instalación-y-configuración)
 - [Semana 7: configuración y variables de entorno](#semana-7-configuración-y-variables-de-entorno)
+- [Semana 8: usuarios y autenticación inicial](#semana-8-usuarios-y-autenticación-inicial)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
 - [Endpoints de matrículas](#endpoints-de-matrículas)
+- [Endpoints de usuarios y autenticación](#endpoints-de-usuarios-y-autenticación)
 - [Validaciones y respuestas HTTP](#validaciones-y-respuestas-http)
 - [Persistencia y pruebas de la Semana 5](#persistencia-y-pruebas-de-la-semana-5)
 - [Actuación 3: consultas, filtros y paginación](#actuación-3-consultas-filtros-y-paginación)
@@ -44,6 +46,7 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **Joi:** validación de la configuración de la aplicación.
 - **class-validator:** validación de datos y parámetros.
 - **class-transformer:** transformación de parámetros y objetos.
+- **bcrypt:** hash de contraseñas.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
@@ -60,14 +63,17 @@ Las principales funcionalidades incluyen:
 - Búsqueda textual por nombre o correo electrónico de estudiantes.
 - Búsqueda de matrículas por estudiante o título del curso.
 - Filtros combinables por carrera, semestre, estado, nivel, estudiante o curso.
-- Paginación de resultados.
-- Ordenamiento por campos permitidos.
+- Paginación y ordenamiento de resultados.
 - Respuestas estructuradas con `items` y `meta` para las consultas paginadas.
 - Validación de parámetros inválidos.
 - Control de matrículas duplicadas y estudiantes inactivos.
 - Configuración mediante variables de entorno.
 - Validación de la configuración al iniciar la aplicación.
-- Configuración de TypeORM según el ambiente de ejecución.
+- Registro de usuarios mediante correo electrónico y contraseña.
+- Validación y normalización del correo electrónico.
+- Hash de contraseñas mediante bcrypt antes de almacenarlas.
+- Prevención del registro de correos duplicados.
+- Respuestas de registro que no exponen el hash de la contraseña.
 
 ## Arquitectura
 
@@ -116,30 +122,40 @@ TypeORM Repository
 PostgreSQL
 ```
 
+En el registro de usuarios, el flujo incluye la validación de los datos, la comprobación del correo electrónico, el hash de la contraseña y la persistencia del nuevo usuario.
+
 ## Estructura del proyecto
 
-La siguiente estructura representa los módulos principales de la aplicación. La ubicación de los archivos auxiliares puede variar según la implementación actual.
+La siguiente estructura resume los módulos principales de la aplicación.
 
 ```text
 src/
+├── auth/
+│   ├── dto/
+│   │   └── register.dto.ts
+│   ├── auth.controller.ts
+│   ├── auth.module.ts
+│   ├── auth.service.ts
+│   ├── auth.controller.spec.ts
+│   └── auth.service.spec.ts
+│
+├── users/
+│   ├── entities/
+│   │   └── user.entity.ts
+│   ├── users.module.ts
+│   ├── users.service.ts
+│   └── users.service.spec.ts
+│
 ├── courses/
 │   ├── dto/
-│   │   ├── create-course.dto.ts
-│   │   ├── update-course.dto.ts
-│   │   └── courses-query.dto.ts
 │   ├── entities/
-│   │   └── course.entity.ts
 │   ├── courses.controller.ts
 │   ├── courses.module.ts
 │   └── courses.service.ts
 │
 ├── students/
 │   ├── dto/
-│   │   ├── create-students.dto.ts
-│   │   ├── update-students.dto.ts
-│   │   └── students-query.dto.ts
 │   ├── entities/
-│   │   └── student.entity.ts
 │   ├── pipes/
 │   ├── students.controller.ts
 │   ├── students.module.ts
@@ -147,10 +163,7 @@ src/
 │
 ├── enrollments/
 │   ├── dto/
-│   │   ├── create-enrollment.dto.ts
-│   │   └── enrollments-query.dto.ts
 │   ├── entities/
-│   │   └── enrollment.entity.ts
 │   ├── enrollments.controller.ts
 │   ├── enrollments.module.ts
 │   └── enrollments.service.ts
@@ -158,12 +171,18 @@ src/
 ├── app.module.ts
 └── main.ts
 
+evidencias/
+├── actuacion3/
+└── actuacion5/
+
 .env
 .env.example
 .gitignore
 package.json
 README.md
 ```
+
+La estructura es orientativa; se deben conservar los nombres y archivos que existan realmente en el repositorio.
 
 ## Instalación y configuración
 
@@ -176,9 +195,9 @@ Antes de ejecutar el proyecto, se necesita:
 - Una base de datos para CourseHub.
 - Un cliente HTTP, como Thunder Client, para probar los endpoints.
 
-### 2. Obtener las dependencias
+### 2. Instalar dependencias
 
-Desde la carpeta raíz del proyecto, ejecutar:
+Desde la carpeta raíz del proyecto:
 
 ```bash
 npm install
@@ -202,7 +221,7 @@ Copy-Item .env.example .env
 
 Si `.env` ya existe, conservarlo para no sobrescribir las credenciales locales.
 
-Editar el archivo `.env` y configurar los valores correspondientes al entorno local:
+Configurar los valores correspondientes al entorno local:
 
 ```env
 NODE_ENV=development
@@ -214,7 +233,7 @@ DATABASE_USER=postgres
 DATABASE_PASSWORD=tu_password_local
 ```
 
-El valor `tu_password_local` es ilustrativo y debe sustituirse por la contraseña real de PostgreSQL en el archivo local `.env`.
+El valor `tu_password_local` es ilustrativo y debe sustituirse por la contraseña local de PostgreSQL.
 
 **Importante:** no publicar el archivo `.env` cuando contiene credenciales reales. El archivo que se comparte en el repositorio es `.env.example`, sin secretos personales.
 
@@ -252,9 +271,7 @@ Durante la Semana 7 se trabajó en la configuración de CourseHub API para evita
 
 ### 1. Variables de entorno
 
-La aplicación utiliza las siguientes variables:
-
-| Variable | Descripción | Valor predeterminado o ejemplo |
+| Variable | Descripción | Valor de ejemplo |
 |---|---|---|
 | `NODE_ENV` | Ambiente de ejecución | `development` |
 | `PORT` | Puerto HTTP de la API | `3000` |
@@ -264,13 +281,11 @@ La aplicación utiliza las siguientes variables:
 | `DATABASE_USER` | Usuario de PostgreSQL | `postgres` |
 | `DATABASE_PASSWORD` | Contraseña de PostgreSQL | Configurada localmente |
 
-Los valores predeterminados de `NODE_ENV`, `PORT` y `DATABASE_PORT` se establecen en el esquema de configuración. Las variables de conexión obligatorias deben estar definidas para que la aplicación pueda iniciarse correctamente.
-
 ### 2. Configuración mediante ConfigModule
 
-Se utiliza `ConfigModule` de `@nestjs/config` para cargar las variables de entorno y permitir que los módulos de la aplicación accedan a ellas.
+Se utiliza `ConfigModule` de `@nestjs/config` para cargar las variables de entorno y permitir que los módulos accedan a ellas mediante `ConfigService`.
 
-La configuración se establece como global para que `ConfigService` pueda utilizarse sin tener que importar `ConfigModule` en cada módulo.
+La configuración se establece como global para evitar importar `ConfigModule` en cada módulo.
 
 ### 3. Validación mediante Joi
 
@@ -288,43 +303,27 @@ Las validaciones incluyen:
 
 Si una variable no cumple las reglas establecidas, la aplicación informa un error de configuración durante el inicio.
 
-Por ejemplo, utilizar un valor no permitido para `NODE_ENV` debe producir un error de validación, en lugar de permitir que la aplicación se inicie con una configuración inválida.
-
 ### 4. ConfigService y conexión a PostgreSQL
 
-La conexión se configura mediante `TypeOrmModule.forRootAsync` y `ConfigService`.
-
-Este mecanismo obtiene los parámetros de conexión desde las variables de entorno, evitando escribir las credenciales directamente en `app.module.ts`.
-
-Los parámetros utilizados son:
-
-- Host.
-- Puerto.
-- Usuario.
-- Contraseña.
-- Nombre de la base de datos.
+La conexión se configura mediante `TypeOrmModule.forRootAsync` y `ConfigService`. Este mecanismo obtiene los parámetros de conexión desde las variables de entorno, evitando escribir las credenciales directamente en `app.module.ts`.
 
 La opción `autoLoadEntities` permite registrar las entidades asociadas a los módulos de TypeORM que las utilizan.
 
 ### 5. Política de synchronize por ambiente
 
-La configuración de TypeORM establece la sincronización automática del esquema según el ambiente de ejecución.
-
-| Ambiente | Valor de `synchronize` | Propósito |
-|---|---|---|
-| `development` | `true` | Facilitar el desarrollo local |
-| `test` | `false` | Evitar sincronización automática |
-| `production` | `false` | Evitar modificaciones automáticas del esquema |
-
-La configuración utiliza la condición:
+La configuración de TypeORM utiliza la siguiente condición:
 
 ```typescript
 synchronize: environment === 'development'
 ```
 
-De esta manera, `synchronize` solo se habilita cuando `NODE_ENV` tiene el valor `development`.
+| Ambiente | Valor de `synchronize` |
+|---|---|
+| `development` | `true` |
+| `test` | `false` |
+| `production` | `false` |
 
-**Importante:** no se debe utilizar `synchronize: true` en producción. Para entornos que requieren un control explícito de los cambios del esquema, se deben utilizar migraciones de base de datos.
+No se recomienda utilizar `synchronize: true` en producción. Para entornos que requieren control explícito de los cambios del esquema, se deben utilizar migraciones.
 
 ### 6. Validaciones globales de solicitudes HTTP
 
@@ -339,26 +338,211 @@ Estas opciones complementan la validación de los datos y parámetros de los end
 ### 7. Archivos de configuración
 
 - `.env`: configuración local de la aplicación.
-- `.env.example`: plantilla con nombres de variables y valores de ejemplo.
-- `.gitignore`: excluye el archivo `.env` y otros archivos locales de configuración.
-- `src/app.module.ts`: configura `ConfigModule`, Joi y la conexión con TypeORM.
-- `src/main.ts`: configura las validaciones globales y obtiene el puerto mediante `ConfigService`.
+- `.env.example`: plantilla con variables de ejemplo.
+- `.gitignore`: excluye el archivo `.env` y otros archivos locales.
+- `src/app.module.ts`: configuración de módulos, Joi y TypeORM.
+- `src/main.ts`: configuración de validaciones globales y puerto HTTP.
 
-### 8. Verificación de la configuración
+## Semana 8: usuarios y autenticación inicial
 
-Para comprobar la configuración:
+En la Semana 8, Sesión 15, se incorporaron los módulos `users` y `auth` para iniciar la funcionalidad de registro de usuarios y el almacenamiento seguro de contraseñas.
 
-1. Verificar que `.env` tenga las variables necesarias.
-2. Iniciar la API con `npm run start:dev`.
-3. Confirmar que NestJS inicie correctamente y que pueda conectarse a PostgreSQL.
-4. Comprobar que un valor no permitido de `NODE_ENV` provoque un error de validación.
-5. Ejecutar las consultas HTTP habituales para comprobar que los módulos siguen funcionando.
+El objetivo de esta etapa es permitir que una persona cree una cuenta mediante correo electrónico y contraseña, validando los datos recibidos y evitando almacenar contraseñas en texto plano.
 
-Las capturas de estas comprobaciones deben guardarse en la carpeta de evidencias correspondiente a la Semana 7.
+### 1. Módulo users
+
+El módulo `users` administra el acceso a los usuarios almacenados en PostgreSQL mediante TypeORM.
+
+La entidad `User`, ubicada en `src/users/entities/user.entity.ts`, utiliza los siguientes campos:
+
+| Campo | Descripción |
+|---|---|
+| `id` | Identificador generado automáticamente |
+| `email` | Correo electrónico único del usuario |
+| `passwordHash` | Hash de la contraseña |
+| `createdAt` | Fecha de creación del registro |
+
+La entidad establece `email` como un campo único para evitar que existan varios usuarios con el mismo correo.
+
+La propiedad `passwordHash` utiliza `select: false` para impedir que se incluya automáticamente en las consultas ordinarias de TypeORM. Cuando se necesita verificar las credenciales en el futuro, el servicio debe solicitar explícitamente ese campo.
+
+El módulo `UsersModule` registra la entidad mediante `TypeOrmModule.forFeature([User])` y proporciona el servicio `UsersService`.
+
+### 2. Módulo auth
+
+El módulo `auth` contiene la lógica relacionada con el registro inicial de usuarios.
+
+Los archivos principales son:
+
+- `src/auth/auth.controller.ts`: expone la ruta de registro.
+- `src/auth/auth.service.ts`: implementa las comprobaciones y el registro.
+- `src/auth/auth.module.ts`: configura el módulo.
+- `src/auth/dto/register.dto.ts`: valida los datos recibidos.
+
+### 3. Endpoint de registro
+
+**Ruta:** `POST /auth/register`
+
+Permite registrar un usuario mediante un correo electrónico y una contraseña.
+
+Ejemplo de solicitud:
+
+```http
+POST /auth/register
+Content-Type: application/json
+```
+
+Cuerpo de ejemplo:
+
+```json
+{
+  "email": "ana@example.com",
+  "password": "ClaveSegura123"
+}
+```
+
+El correo y la contraseña son datos ilustrativos. Para repetir la prueba, se debe utilizar un correo que todavía no esté registrado.
+
+### 4. Validaciones del registro
+
+El DTO `RegisterDto` aplica las siguientes reglas:
+
+- El correo debe tener un formato válido.
+- El correo se transforma a minúsculas y se eliminan espacios al inicio y al final.
+- La contraseña debe ser una cadena de texto.
+- La contraseña debe tener al menos 8 caracteres.
+- La contraseña debe tener como máximo 72 caracteres para la validación aplicada en esta implementación.
+- Las propiedades no permitidas se rechazan mediante el `ValidationPipe` global.
+
+La normalización del correo permite tratar de forma consistente direcciones que se envían con mayúsculas o espacios adicionales.
+
+### 5. Hash de contraseñas con bcrypt
+
+La contraseña recibida no se almacena directamente. Antes de crear el usuario, el servicio genera un hash con bcrypt utilizando un factor de costo de 12:
+
+```typescript
+const passwordHash = await bcrypt.hash(dto.password, 12);
+```
+
+El valor resultante se guarda en la columna `passwordHash` de la tabla `users`.
+
+Un hash no es la contraseña original: se utiliza para verificar contraseñas posteriormente sin necesidad de almacenar el texto original.
+
+**Importante:** el hash no debe devolverse en la respuesta HTTP ni exponerse en las consultas ordinarias.
+
+### 6. Respuesta de registro exitoso
+
+Cuando el registro se completa correctamente, el endpoint devuelve el identificador, el correo electrónico y la fecha de creación, sin incluir la contraseña ni el hash.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "id": 1,
+  "email": "ana@example.com",
+  "createdAt": "2026-10-19T19:46:24.803Z"
+}
+```
+
+La fecha y el identificador mostrados corresponden a un ejemplo de la prueba realizada; pueden cambiar en otros registros.
+
+### 7. Prevención de correos duplicados
+
+Antes de crear un usuario, el servicio comprueba si el correo ya está registrado.
+
+Si existe un usuario con ese correo, el endpoint devuelve `409 Conflict`.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "message": "El correo ya está registrado",
+  "error": "Conflict",
+  "statusCode": 409
+}
+```
+
+La restricción única en la base de datos complementa esta comprobación. El servicio también contempla el error de PostgreSQL `23505` correspondiente a una violación de unicidad.
+
+### 8. Manejo de solicitudes inválidas
+
+**Correo inválido**
+
+Una solicitud con un correo que no cumple el formato esperado devuelve `400 Bad Request`.
+
+**Contraseña demasiado corta**
+
+Una contraseña de menos de 8 caracteres devuelve `400 Bad Request`.
+
+Las solicitudes rechazadas por las validaciones no deben crear registros de usuarios.
+
+### 9. Evidencias de la Sesión 15
+
+Las capturas se guardaron en la carpeta:
+
+```text
+evidencias/actuacion5/
+```
+
+Los archivos incluidos son:
+
+```text
+1. Confirmar la tabla users.png
+2. Registrar a Ana en Thunder Client.png
+3. Verificar el user sin contraseña en PostgreSQL.png
+4. Verificar el hash en PostgreSQL.png
+5. Probar correo duplicado.png
+6. Rechazar correo inválido.png
+7. Rechazar contraseña corta.png
+8. Verificar que no se crearon usuarios inválidos.png
+```
+
+Estas evidencias documentan las comprobaciones realizadas con Thunder Client y PostgreSQL.
+
+### 10. Verificación del almacenamiento seguro
+
+La estructura de la tabla se puede comprobar mediante:
+
+```sql
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'users'
+ORDER BY ordinal_position;
+```
+
+Para inspeccionar el hash sin mostrarlo completo:
+
+```sql
+SELECT
+    id,
+    email,
+    LEFT("passwordHash", 2) AS hash_inicio,
+    LENGTH("passwordHash") AS longitud_hash
+FROM users
+WHERE email = 'ana@example.com';
+```
+
+En la prueba realizada se observó el prefijo `$2` y una longitud de 60 caracteres para el hash de bcrypt.
+
+Para consultar únicamente los usuarios y sus correos:
+
+```sql
+SELECT id, email
+FROM users
+ORDER BY id;
+```
+
+Esta última consulta permite comprobar los registros existentes sin mostrar hashes ni contraseñas.
+
+### 11. Alcance de esta etapa
+
+En esta sesión se trabajó en el registro de usuarios, las validaciones del DTO, la normalización del correo, el hash con bcrypt, la persistencia en PostgreSQL y el rechazo de correos duplicados.
+
+Esta sección documenta la funcionalidad de registro implementada. El inicio de sesión, la verificación de credenciales y la emisión y validación de tokens JWT deben documentarse cuando se implementen y comprueben.
 
 ## Modelo de datos
 
-El modelo principal relaciona tres entidades:
+El modelo académico principal relaciona tres entidades:
 
 ```text
 Student 1 ─────── N Enrollment N ─────── 1 Course
@@ -368,7 +552,9 @@ Student 1 ─────── N Enrollment N ─────── 1 Course
 - **Course:** representa los cursos disponibles.
 - **Enrollment:** relaciona un estudiante con un curso.
 
-Un estudiante puede tener varias matrículas y un curso puede tener varios estudiantes matriculados. Cada matrícula se relaciona con un estudiante y un curso mediante las relaciones y claves foráneas correspondientes.
+Un estudiante puede tener varias matrículas y un curso puede tener varios estudiantes matriculados. Cada matrícula se relaciona con un estudiante y un curso mediante relaciones y claves foráneas.
+
+El registro de usuarios utiliza la tabla adicional `users`.
 
 ### Estudiante
 
@@ -429,6 +615,17 @@ Ejemplo de solicitud:
 
 La API verifica que existan el estudiante y el curso, que el estudiante esté activo y que no exista una matrícula duplicada para la misma combinación.
 
+### Usuario
+
+| Campo | Descripción |
+|---|---|
+| `id` | Identificador generado automáticamente |
+| `email` | Correo único |
+| `passwordHash` | Hash de la contraseña |
+| `createdAt` | Fecha de creación |
+
+El campo `passwordHash` almacena el resultado de bcrypt, no la contraseña en texto plano.
+
 ## Endpoints de estudiantes
 
 ### Endpoints disponibles
@@ -472,37 +669,13 @@ semester
 
 Los valores permitidos para `order` son `ASC` y `DESC`.
 
-La búsqueda textual permite buscar coincidencias parciales sin distinguir entre mayúsculas y minúsculas.
-
 ### Ejemplos de consulta
-
-Listar estudiantes con paginación:
 
 ```http
 GET /students?page=1&limit=10
-```
-
-Buscar por nombre o correo:
-
-```http
 GET /students?search=carlos
-```
-
-Combinar filtros:
-
-```http
 GET /students?career=Software&semester=5&isActive=true
-```
-
-Ordenar por nombre:
-
-```http
 GET /students?sortBy=name&order=ASC
-```
-
-Buscar y paginar:
-
-```http
 GET /students?search=carlos&page=1&limit=5
 ```
 
@@ -605,45 +778,17 @@ La respuesta paginada utiliza esta estructura:
 }
 ```
 
-### Ejemplos de paginación
-
-Primera página:
+### Ejemplos de consulta
 
 ```http
 GET /courses?page=1&limit=2&sortBy=id&order=ASC
-```
-
-Segunda página:
-
-```http
 GET /courses?page=2&limit=2&sortBy=id&order=ASC
-```
-
-Con cinco cursos y orden ascendente por ID, se esperan dos registros en las dos primeras páginas y uno en la tercera, siempre que los cinco registros existan y no haya otros filtros activos.
-
-### Filtrar por nivel
-
-```http
 GET /courses?level=beginner&page=1&limit=10
-```
-
-El resultado contiene los cursos que cumplen el filtro de nivel.
-
-### Ordenar por título
-
-Orden ascendente:
-
-```http
 GET /courses?sortBy=title&order=ASC
-```
-
-Orden descendente:
-
-```http
 GET /courses?sortBy=title&order=DESC
 ```
 
-El sistema restringe los campos de ordenamiento permitidos.
+Los resultados dependen de los registros existentes y de los filtros enviados.
 
 ### Crear un curso
 
@@ -725,51 +870,18 @@ La respuesta paginada utiliza esta estructura:
 }
 ```
 
-### Buscar por estudiante
+### Ejemplos de consulta
 
 ```http
 GET /enrollments?search=carlos
-```
-
-La búsqueda admite coincidencias parciales en el nombre del estudiante.
-
-### Buscar por título del curso
-
-```http
 GET /enrollments?search=nestjs
-```
-
-La búsqueda consulta el nombre del estudiante y el título del curso. La implementación utiliza `QueryBuilder` y parámetros para construir la consulta.
-
-### Filtrar por estudiante o curso
-
-Por estudiante:
-
-```http
 GET /enrollments?studentId=3
-```
-
-Por curso:
-
-```http
 GET /enrollments?courseId=3
-```
-
-### Filtrar por estudiantes activos
-
-```http
 GET /enrollments?activeOnly=true
-```
-
-Este filtro permite consultar las matrículas asociadas a estudiantes activos.
-
-### Combinar búsqueda, filtros y paginación
-
-```http
 GET /enrollments?search=carlos&activeOnly=true&page=1&limit=1
 ```
 
-Esta consulta combina la búsqueda textual, el filtro de estudiantes activos y la paginación.
+La búsqueda consulta el nombre del estudiante y el título del curso. La implementación utiliza `QueryBuilder` y parámetros para construir la consulta.
 
 Las respuestas incluyen información relacionada con el estudiante y el curso cuando así lo establece la implementación del endpoint.
 
@@ -785,6 +897,66 @@ Después de cancelar una matrícula, se puede comprobar el resultado consultando
 GET /enrollments
 ```
 
+## Endpoints de usuarios y autenticación
+
+### Endpoint disponible
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/auth/register` | Registrar un usuario con correo y contraseña |
+
+### Registrar un usuario
+
+Solicitud:
+
+```http
+POST /auth/register
+Content-Type: application/json
+```
+
+Cuerpo:
+
+```json
+{
+  "email": "ana@example.com",
+  "password": "ClaveSegura123"
+}
+```
+
+Respuesta de ejemplo:
+
+```json
+{
+  "id": 1,
+  "email": "ana@example.com",
+  "createdAt": "2026-10-19T19:46:24.803Z"
+}
+```
+
+La respuesta no incluye el hash de la contraseña.
+
+### Respuestas de error
+
+| Situación | Código HTTP | Descripción |
+|---|---|---|
+| Registro exitoso | `201 Created` | El usuario fue creado |
+| Correo inválido | `400 Bad Request` | El correo no cumple el formato esperado |
+| Contraseña demasiado corta | `400 Bad Request` | La contraseña tiene menos de 8 caracteres |
+| Correo duplicado | `409 Conflict` | El correo ya está registrado |
+
+Los mensajes exactos de validación dependen de las reglas configuradas en el DTO.
+
+### Seguridad del registro
+
+- Los correos se normalizan a minúsculas y se eliminan espacios externos.
+- La contraseña se transforma en un hash mediante bcrypt.
+- El hash se almacena en `passwordHash`.
+- El campo `passwordHash` no se selecciona automáticamente en consultas ordinarias.
+- La respuesta de registro no expone contraseñas ni hashes.
+- La unicidad del correo se comprueba desde el servicio y la base de datos.
+
+El endpoint de registro no debe confundirse con un endpoint de inicio de sesión. Las funciones de autenticación mediante credenciales y JWT se documentarán cuando estén implementadas y verificadas.
+
 ## Validaciones y respuestas HTTP
 
 La API utiliza DTOs, `class-validator`, `class-transformer` y un `ValidationPipe` global para validar los datos de entrada y los parámetros de consulta configurados.
@@ -792,10 +964,10 @@ La API utiliza DTOs, `class-validator`, `class-transformer` y un `ValidationPipe
 | Código | Significado | Ejemplo |
 |---|---|---|
 | `200 OK` | Consulta correcta | Listar estudiantes o matrículas |
-| `201 Created` | Recurso creado | Crear un estudiante, curso o matrícula |
-| `400 Bad Request` | Solicitud o parámetro inválido | `page=0` o `limit=100` |
+| `201 Created` | Recurso creado | Crear un estudiante, curso, matrícula o usuario |
+| `400 Bad Request` | Solicitud o parámetro inválido | `page=0`, `limit=100` o correo inválido |
 | `404 Not Found` | Recurso inexistente | Consultar un estudiante inexistente |
-| `409 Conflict` | Conflicto con los datos | Matrícula duplicada o estudiante inactivo |
+| `409 Conflict` | Conflicto con los datos | Matrícula duplicada, estudiante inactivo o correo duplicado |
 
 Los códigos concretos dependen del endpoint y de las excepciones implementadas.
 
@@ -825,7 +997,7 @@ No se permite registrar dos veces la misma combinación:
 studentId + courseId
 ```
 
-Respuesta esperada de la regla de negocio:
+Respuesta de ejemplo:
 
 ```json
 {
@@ -847,7 +1019,7 @@ Ejemplo del estado:
 }
 ```
 
-Respuesta esperada de la regla de negocio:
+Respuesta de ejemplo:
 
 ```json
 {
@@ -857,9 +1029,21 @@ Respuesta esperada de la regla de negocio:
 }
 ```
 
+### Correos duplicados
+
+El registro de usuarios rechaza un correo que ya existe:
+
+```json
+{
+  "message": "El correo ya está registrado",
+  "error": "Conflict",
+  "statusCode": 409
+}
+```
+
 ### Búsquedas sin resultados
 
-Cuando una búsqueda de colección no encuentra coincidencias, la respuesta esperada es una colección vacía en lugar de tratarla como un recurso inexistente.
+Cuando una búsqueda de colección no encuentra coincidencias, la respuesta esperada es una colección vacía.
 
 Ejemplo:
 
@@ -913,13 +1097,13 @@ La matrícula debe almacenarse correctamente cuando ambos registros existen, el 
 
 ### 3. Reiniciar la API
 
-Se detiene la aplicación y se vuelve a iniciar:
+Detener la aplicación y volver a iniciarla:
 
 ```bash
 npm run start:dev
 ```
 
-Posteriormente, se consultan las matrículas:
+Posteriormente, consultar las matrículas:
 
 ```http
 GET /enrollments
@@ -941,8 +1125,6 @@ Durante la Semana 6 se implementaron funcionalidades de consulta avanzada para c
 
 ### Demostración de cursos y matrículas
 
-#### 1. Crear suficientes cursos
-
 Para demostrar la paginación se pueden utilizar cinco cursos de ejemplo:
 
 ```text
@@ -953,67 +1135,50 @@ Bases de Datos con PostgreSQL
 APIs REST con NestJS
 ```
 
-#### 2. Solicitar páginas consecutivas
-
-Primera página:
+Solicitar páginas consecutivas:
 
 ```http
 GET /courses?page=1&limit=2&sortBy=id&order=ASC
-```
-
-Segunda página:
-
-```http
 GET /courses?page=2&limit=2&sortBy=id&order=ASC
 ```
 
-Los registros concretos dependen de los datos existentes y de sus identificadores.
-
-#### 3. Filtrar cursos por nivel
+Filtrar cursos por nivel:
 
 ```http
 GET /courses?level=beginner&page=1&limit=10
 ```
 
-El resultado contiene los cursos que cumplen el filtro de nivel.
-
-#### 4. Buscar matrículas
-
-Por nombre del estudiante:
+Buscar matrículas por estudiante:
 
 ```http
 GET /enrollments?search=carlos
 ```
 
-Por título del curso:
+Buscar matrículas por curso:
 
 ```http
 GET /enrollments?search=nestjs
 ```
 
-#### 5. Combinar búsqueda, filtro y paginación
+Combinar búsqueda, filtro y paginación:
 
 ```http
 GET /enrollments?search=carlos&activeOnly=true&page=1&limit=1
 ```
 
-La respuesta debe respetar todos los filtros enviados y presentar los metadatos correspondientes.
-
-#### 6. Probar una petición inválida
+Probar una petición inválida:
 
 ```http
 GET /courses?limit=100
 ```
 
-La API debe devolver `400 Bad Request` si el límite máximo está validado en el DTO.
-
-#### 7. Buscar sin resultados
+Buscar sin resultados:
 
 ```http
 GET /enrollments?search=xyz999
 ```
 
-La consulta debe devolver una colección vacía con metadatos si no existen coincidencias.
+La respuesta debe respetar los filtros enviados y presentar los metadatos correspondientes.
 
 ### Demostración de consultas de estudiantes
 
@@ -1058,15 +1223,11 @@ Se deben conservar los nombres que coincidan con los archivos realmente guardado
 
 ### Evidencias de la Semana 7
 
-Se propone guardar las nuevas capturas en:
+Las capturas de configuración y variables de entorno deben guardarse en la carpeta de evidencias correspondiente a esa actividad.
 
-```text
-evidencias/semana7/
-```
+Las comprobaciones incluyen:
 
-Las evidencias que se prepararán incluyen:
-
-1. Archivo `.env.example` con las variables de entorno de ejemplo, sin contraseñas reales.
+1. Archivo `.env.example` sin contraseñas reales.
 2. Inicio correcto de la API con la configuración local.
 3. Error de validación de Joi al utilizar un valor inválido para `NODE_ENV`.
 4. Consultas de cursos con paginación y ordenamiento.
@@ -1079,6 +1240,25 @@ Las evidencias que se prepararán incluyen:
 
 Las capturas deben mostrar resultados reales obtenidos durante las pruebas. No se deben presentar resultados esperados como si ya hubieran sido comprobados.
 
+### Evidencias de la Semana 8 — Sesión 15
+
+Las capturas del registro inicial de usuarios se guardaron en:
+
+```text
+evidencias/actuacion5/
+```
+
+| Archivo | Comprobación |
+|---|---|
+| `1. Confirmar la tabla users.png` | Verificación de la tabla `users` |
+| `2. Registrar a Ana en Thunder Client.png` | Registro de un usuario mediante la API |
+| `3. Verificar el user sin contraseña en PostgreSQL.png` | Consulta de datos del usuario sin exponer el hash |
+| `4. Verificar el hash en PostgreSQL.png` | Inspección del prefijo y longitud del hash |
+| `5. Probar correo duplicado.png` | Rechazo de un correo ya registrado |
+| `6. Rechazar correo inválido.png` | Validación del formato del correo |
+| `7. Rechazar contraseña corta.png` | Validación de longitud mínima de contraseña |
+| `8. Verificar que no se crearon usuarios inválidos.png` | Comprobación de los registros después de los intentos inválidos |
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -1089,11 +1269,9 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - Persistencia después de reiniciar la API.
 - Rechazo de matrículas duplicadas.
 - Rechazo de estudiantes inactivos.
-- Filtrado por estudiante.
-- Filtrado por curso.
+- Filtrado por estudiante y por curso.
 - Cancelación de matrículas.
-- Paginación de cursos.
-- Paginación de matrículas.
+- Paginación de cursos, matrículas y estudiantes.
 - Filtrado de cursos por nivel.
 - Ordenamiento de cursos.
 - Búsqueda por nombre de estudiante.
@@ -1102,16 +1280,21 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - Combinación de búsqueda, filtros y paginación.
 - Validación de parámetros inválidos.
 - Respuesta de colección vacía cuando no existen resultados.
-- Búsqueda, filtros y ordenamiento de estudiantes.
 - Validación de variables de entorno.
 - Verificación de la conexión mediante configuración externa.
 - Comprobación de la política de `synchronize` por ambiente.
+- Registro de usuarios con correo y contraseña.
+- Hash de contraseñas con bcrypt.
+- Rechazo de correos duplicados.
+- Rechazo de correos inválidos.
+- Rechazo de contraseñas demasiado cortas.
+- Verificación del almacenamiento del hash y de la respuesta sin contraseña.
 
 ## Persistencia de datos
 
 La información del proyecto se almacena en PostgreSQL mediante TypeORM.
 
-Las tablas principales son:
+Las tablas principales del sistema académico son:
 
 ```text
 students
@@ -1121,21 +1304,15 @@ enrollments
 
 La tabla `enrollments` relaciona estudiantes y cursos mediante claves foráneas.
 
-Representación simplificada:
+La funcionalidad de registro añade la tabla:
 
 ```text
-students
-   |
-   | 1:N
-   |
-enrollments
-   |
-   | N:1
-   |
-courses
+users
 ```
 
-La persistencia se puede verificar reiniciando la API y consultando nuevamente los registros almacenados.
+Esta tabla almacena el correo, el hash de la contraseña y la fecha de creación del usuario.
+
+La persistencia se puede verificar reiniciando la API y consultando nuevamente los registros almacenados, siempre que se utilice la misma base de datos.
 
 ## Seguridad de credenciales
 
@@ -1155,11 +1332,11 @@ DATABASE_USER=postgres
 DATABASE_PASSWORD=change_me
 ```
 
-El valor `change_me` es únicamente ilustrativo. Cada integrante debe configurar las credenciales que correspondan a su propio entorno local.
+El valor `change_me` es únicamente ilustrativo. Cada integrante debe configurar las credenciales que correspondan a su entorno local.
 
 El archivo `.gitignore` debe excluir `.env` y los archivos locales de configuración que puedan contener credenciales.
 
-Antes de publicar cambios, se debe comprobar que no se haya incluido accidentalmente el archivo `.env`:
+Antes de publicar cambios, se puede comprobar que `.env` esté ignorado mediante:
 
 ```powershell
 git check-ignore .env
@@ -1167,7 +1344,16 @@ git check-ignore .env
 
 El comando debe identificar `.env` como un archivo ignorado.
 
-No se deben incluir contraseñas reales, tokens ni otros secretos en el README, en capturas de pantalla o en los commits.
+### Seguridad de contraseñas de usuarios
+
+Las contraseñas de las cuentas no se almacenan en texto plano. El registro aplica bcrypt antes de guardar el valor en `passwordHash`.
+
+Además:
+
+- La entidad establece `select: false` para `passwordHash`.
+- La respuesta de registro contiene los datos públicos del usuario, no su contraseña ni el hash.
+- Las consultas para verificar el hash deben limitar la información mostrada.
+- No se deben incluir contraseñas reales, tokens ni otros secretos en el README, en capturas de pantalla o en los commits.
 
 ## Comandos disponibles
 
@@ -1230,6 +1416,7 @@ Los comandos disponibles dependen de los scripts declarados en `package.json`.
 - [class-validator](https://github.com/typestack/class-validator)
 - [class-transformer](https://github.com/typestack/class-transformer)
 - [Joi](https://joi.dev/)
+- [bcrypt](https://www.npmjs.com/package/bcrypt)
 
 ## Estado del proyecto
 
@@ -1252,11 +1439,21 @@ Las funcionalidades documentadas incluyen:
 - Obtención de la configuración mediante `ConfigService`.
 - Validaciones globales de solicitudes HTTP.
 - Configuración de `synchronize` según el ambiente.
-- Documentación y evidencias de las pruebas realizadas.
+- Módulo de usuarios con entidad y servicio.
+- Registro inicial de usuarios mediante `POST /auth/register`.
+- Validación y normalización del correo electrónico.
+- Hash de contraseñas mediante bcrypt.
+- Prevención de correos duplicados.
+- Respuestas de registro sin contraseña ni hash.
+- Evidencias de las pruebas de registro y validaciones.
 
 En la Semana 6 se amplió `GET /students` para incorporar búsqueda textual, filtros combinables, paginación, ordenamiento controlado y validación de parámetros.
 
 En la Semana 7 se trabajó en la configuración de la aplicación mediante variables de entorno, la validación de la configuración, el uso de `ConfigService` y la adaptación de la sincronización de TypeORM al ambiente de ejecución.
+
+En la Semana 8, Sesión 15, se incorporaron los módulos `users` y `auth` y se verificó el registro inicial de usuarios, el almacenamiento de hashes mediante bcrypt y el rechazo de solicitudes con datos inválidos o correos duplicados.
+
+El inicio de sesión, la emisión y validación de tokens JWT y la protección de rutas deben añadirse al estado del proyecto cuando estén implementados y probados.
 
 Las pruebas y capturas correspondientes deben reflejar el comportamiento real de la implementación actual.
 
