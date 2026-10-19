@@ -9,10 +9,11 @@ import { WelcomeService } from './welcome.service.js';
 import { CoursesModule } from './courses/courses.module.js';
 import { StudentsModule } from './students/students.module.js';
 import { EnrollmentsModule } from './enrollments/enrollments.module.js';
+import { UsersModule } from './users/users.module.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
-    // Configuración y validación de variables de entorno
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
@@ -27,11 +28,12 @@ import { EnrollmentsModule } from './enrollments/enrollments.module.js';
         DATABASE_NAME: Joi.string().required(),
       }),
     }),
-    // Configuración de PostgreSQL con TypeORM
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const environment = config.getOrThrow<string>('NODE_ENV');
+
         return {
           type: 'postgres' as const,
           host: config.getOrThrow<string>('DATABASE_HOST'),
@@ -39,17 +41,17 @@ import { EnrollmentsModule } from './enrollments/enrollments.module.js';
           username: config.getOrThrow<string>('DATABASE_USER'),
           password: config.getOrThrow<string>('DATABASE_PASSWORD'),
           database: config.getOrThrow<string>('DATABASE_NAME'),
-          // Carga automáticamente las entidades registradas
           autoLoadEntities: true,
-          // Sincroniza automáticamente solo en desarrollo
           synchronize: environment === 'development',
         };
       },
     }),
-    // Módulos de la aplicación
+
     CoursesModule,
     StudentsModule,
     EnrollmentsModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController, WelcomeController],
   providers: [AppService, WelcomeService],
