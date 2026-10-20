@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y registro inicial de usuarios con almacenamiento seguro de contraseñas.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y registro e inicio de sesión de usuarios con almacenamiento seguro de contraseñas.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -46,7 +46,7 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **Joi:** validación de la configuración de la aplicación.
 - **class-validator:** validación de datos y parámetros.
 - **class-transformer:** transformación de parámetros y objetos.
-- **bcrypt:** hash de contraseñas.
+- **bcrypt:** hash y verificación de contraseñas.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
@@ -70,10 +70,12 @@ Las principales funcionalidades incluyen:
 - Configuración mediante variables de entorno.
 - Validación de la configuración al iniciar la aplicación.
 - Registro de usuarios mediante correo electrónico y contraseña.
+- Inicio de sesión mediante correo electrónico y contraseña.
 - Validación y normalización del correo electrónico.
 - Hash de contraseñas mediante bcrypt antes de almacenarlas.
+- Verificación de contraseñas mediante `bcrypt.compare`.
 - Prevención del registro de correos duplicados.
-- Respuestas de registro que no exponen el hash de la contraseña.
+- Respuestas de autenticación que no deben exponer el hash de la contraseña.
 
 ## Arquitectura
 
@@ -122,17 +124,18 @@ TypeORM Repository
 PostgreSQL
 ```
 
-En el registro de usuarios, el flujo incluye la validación de los datos, la comprobación del correo electrónico, el hash de la contraseña y la persistencia del nuevo usuario.
+En el registro de usuarios, el flujo incluye la validación de los datos, la comprobación del correo electrónico, el hash de la contraseña y la persistencia del nuevo usuario. En el inicio de sesión, se recupera expresamente el hash y se compara con la contraseña recibida mediante bcrypt.
 
 ## Estructura del proyecto
 
-La siguiente estructura resume los módulos principales de la aplicación.
+La siguiente estructura resume los módulos principales. Es orientativa y debe mantenerse sincronizada con los archivos que existan realmente en el repositorio.
 
 ```text
 src/
 ├── auth/
 │   ├── dto/
-│   │   └── register.dto.ts
+│   │   ├── register.dto.ts
+│   │   └── login.dto.ts
 │   ├── auth.controller.ts
 │   ├── auth.module.ts
 │   ├── auth.service.ts
@@ -173,7 +176,8 @@ src/
 
 evidencias/
 ├── actuacion3/
-└── actuacion5/
+├── actuacion5/
+└── actuacion6/
 
 .env
 .env.example
@@ -345,45 +349,52 @@ Estas opciones complementan la validación de los datos y parámetros de los end
 
 ## Semana 8: usuarios y autenticación inicial
 
-En la Semana 8, Sesión 15, se incorporaron los módulos `users` y `auth` para iniciar la funcionalidad de registro de usuarios y el almacenamiento seguro de contraseñas.
+Durante la Semana 8, correspondiente al avance de la Etapa 3, se amplió el módulo de cuentas de CourseHub API. Además del registro de usuarios, se incorporó el inicio de sesión mediante correo electrónico y contraseña.
 
-El objetivo de esta etapa es permitir que una persona cree una cuenta mediante correo electrónico y contraseña, validando los datos recibidos y evitando almacenar contraseñas en texto plano.
+La implementación utiliza NestJS, TypeScript, PostgreSQL, TypeORM y bcrypt. Los módulos `users` y `auth` mantienen separadas la administración de las cuentas y la lógica de autenticación de los módulos académicos.
 
 ### 1. Módulo users
 
-El módulo `users` administra el acceso a los usuarios almacenados en PostgreSQL mediante TypeORM.
+El módulo `users` administra las cuentas almacenadas en PostgreSQL.
 
-La entidad `User`, ubicada en `src/users/entities/user.entity.ts`, utiliza los siguientes campos:
+Archivos principales:
+
+- `src/users/entities/user.entity.ts`
+- `src/users/users.module.ts`
+- `src/users/users.service.ts`
+
+La entidad `User` contiene los siguientes campos:
 
 | Campo | Descripción |
 |---|---|
 | `id` | Identificador generado automáticamente |
-| `email` | Correo electrónico único del usuario |
+| `email` | Correo electrónico único |
 | `passwordHash` | Hash de la contraseña |
-| `createdAt` | Fecha de creación del registro |
+| `createdAt` | Fecha de creación de la cuenta |
 
-La entidad establece `email` como un campo único para evitar que existan varios usuarios con el mismo correo.
+El correo electrónico cuenta con una restricción de unicidad para evitar cuentas duplicadas. La propiedad `passwordHash` utiliza `select: false` para impedir que TypeORM la incluya automáticamente en las consultas ordinarias.
 
-La propiedad `passwordHash` utiliza `select: false` para impedir que se incluya automáticamente en las consultas ordinarias de TypeORM. Cuando se necesita verificar las credenciales en el futuro, el servicio debe solicitar explícitamente ese campo.
-
-El módulo `UsersModule` registra la entidad mediante `TypeOrmModule.forFeature([User])` y proporciona el servicio `UsersService`.
+Cuando se necesitan verificar las credenciales durante el inicio de sesión, el servicio recupera expresamente el hash almacenado.
 
 ### 2. Módulo auth
 
-El módulo `auth` contiene la lógica relacionada con el registro inicial de usuarios.
+El módulo `auth` contiene los controladores, servicios y DTOs relacionados con el registro y el inicio de sesión.
 
-Los archivos principales son:
+Archivos principales:
 
-- `src/auth/auth.controller.ts`: expone la ruta de registro.
-- `src/auth/auth.service.ts`: implementa las comprobaciones y el registro.
-- `src/auth/auth.module.ts`: configura el módulo.
-- `src/auth/dto/register.dto.ts`: valida los datos recibidos.
+- `src/auth/auth.controller.ts`
+- `src/auth/auth.service.ts`
+- `src/auth/auth.module.ts`
+- `src/auth/dto/register.dto.ts`
+- `src/auth/dto/login.dto.ts`
 
-### 3. Endpoint de registro
+El módulo utiliza `UsersService` para consultar y registrar cuentas.
 
-**Ruta:** `POST /auth/register`
+### 3. Registro de usuarios
 
-Permite registrar un usuario mediante un correo electrónico y una contraseña.
+**Endpoint:** `POST /auth/register`
+
+Permite crear una cuenta mediante correo electrónico y contraseña.
 
 Ejemplo de solicitud:
 
@@ -392,8 +403,6 @@ POST /auth/register
 Content-Type: application/json
 ```
 
-Cuerpo de ejemplo:
-
 ```json
 {
   "email": "ana@example.com",
@@ -401,38 +410,17 @@ Cuerpo de ejemplo:
 }
 ```
 
-El correo y la contraseña son datos ilustrativos. Para repetir la prueba, se debe utilizar un correo que todavía no esté registrado.
+El ejemplo es ilustrativo. Para repetir la prueba se debe utilizar un correo que no esté registrado previamente.
 
-### 4. Validaciones del registro
+El DTO `RegisterDto` valida los datos de entrada. Las reglas documentadas incluyen:
 
-El DTO `RegisterDto` aplica las siguientes reglas:
+- Validación del formato del correo electrónico.
+- Normalización del correo a minúsculas y eliminación de espacios externos.
+- Validación de la contraseña como cadena de texto.
+- Longitud de la contraseña entre 8 y 72 caracteres.
+- Rechazo de propiedades no permitidas mediante el `ValidationPipe` global.
 
-- El correo debe tener un formato válido.
-- El correo se transforma a minúsculas y se eliminan espacios al inicio y al final.
-- La contraseña debe ser una cadena de texto.
-- La contraseña debe tener al menos 8 caracteres.
-- La contraseña debe tener como máximo 72 caracteres para la validación aplicada en esta implementación.
-- Las propiedades no permitidas se rechazan mediante el `ValidationPipe` global.
-
-La normalización del correo permite tratar de forma consistente direcciones que se envían con mayúsculas o espacios adicionales.
-
-### 5. Hash de contraseñas con bcrypt
-
-La contraseña recibida no se almacena directamente. Antes de crear el usuario, el servicio genera un hash con bcrypt utilizando un factor de costo de 12:
-
-```typescript
-const passwordHash = await bcrypt.hash(dto.password, 12);
-```
-
-El valor resultante se guarda en la columna `passwordHash` de la tabla `users`.
-
-Un hash no es la contraseña original: se utiliza para verificar contraseñas posteriormente sin necesidad de almacenar el texto original.
-
-**Importante:** el hash no debe devolverse en la respuesta HTTP ni exponerse en las consultas ordinarias.
-
-### 6. Respuesta de registro exitoso
-
-Cuando el registro se completa correctamente, el endpoint devuelve el identificador, el correo electrónico y la fecha de creación, sin incluir la contraseña ni el hash.
+Cuando el registro se realiza correctamente, la API responde con `201 Created`.
 
 Ejemplo de respuesta:
 
@@ -444,13 +432,27 @@ Ejemplo de respuesta:
 }
 ```
 
-La fecha y el identificador mostrados corresponden a un ejemplo de la prueba realizada; pueden cambiar en otros registros.
+Los valores son ilustrativos. La respuesta no debe incluir la contraseña ni `passwordHash`.
 
-### 7. Prevención de correos duplicados
+### 4. Hash de contraseñas con bcrypt
 
-Antes de crear un usuario, el servicio comprueba si el correo ya está registrado.
+Antes de guardar una cuenta, el servicio transforma la contraseña en un hash mediante bcrypt con un factor de costo de 12:
 
-Si existe un usuario con ese correo, el endpoint devuelve `409 Conflict`.
+```typescript
+const passwordHash = await bcrypt.hash(dto.password, 12);
+```
+
+El hash se almacena en la columna `passwordHash`. La contraseña original no se guarda en texto plano.
+
+En las comprobaciones realizadas en PostgreSQL se observó el prefijo `$2` y una longitud de 60 caracteres para los hashes consultados.
+
+### 5. Prevención de correos duplicados
+
+Antes de registrar una cuenta, el servicio comprueba si el correo ya está registrado.
+
+Además, PostgreSQL aplica una restricción de unicidad que protege la integridad de los datos. Esta protección complementa la comprobación del servicio y permite manejar violaciones de unicidad, incluido el código `23505`.
+
+Cuando se intenta registrar un correo existente, la API responde con `409 Conflict`.
 
 Ejemplo de respuesta:
 
@@ -462,55 +464,66 @@ Ejemplo de respuesta:
 }
 ```
 
-La restricción única en la base de datos complementa esta comprobación. El servicio también contempla el error de PostgreSQL `23505` correspondiente a una violación de unicidad.
+### 6. Inicio de sesión
 
-### 8. Manejo de solicitudes inválidas
+**Endpoint:** `POST /auth/login`
 
-**Correo inválido**
+El inicio de sesión permite verificar las credenciales de una cuenta existente.
 
-Una solicitud con un correo que no cumple el formato esperado devuelve `400 Bad Request`.
+Ejemplo de solicitud:
 
-**Contraseña demasiado corta**
-
-Una contraseña de menos de 8 caracteres devuelve `400 Bad Request`.
-
-Las solicitudes rechazadas por las validaciones no deben crear registros de usuarios.
-
-### 9. Evidencias de la Sesión 15
-
-Las capturas se guardaron en la carpeta:
-
-```text
-evidencias/actuacion5/
+```http
+POST /auth/login
+Content-Type: application/json
 ```
 
-Los archivos incluidos son:
-
-```text
-1. Confirmar la tabla users.png
-2. Registrar a Ana en Thunder Client.png
-3. Verificar el user sin contraseña en PostgreSQL.png
-4. Verificar el hash en PostgreSQL.png
-5. Probar correo duplicado.png
-6. Rechazar correo inválido.png
-7. Rechazar contraseña corta.png
-8. Verificar que no se crearon usuarios inválidos.png
+```json
+{
+  "email": "ana@example.com",
+  "password": "ClaveSegura123"
+}
 ```
 
-Estas evidencias documentan las comprobaciones realizadas con Thunder Client y PostgreSQL.
+El DTO `LoginDto` valida el correo electrónico y la contraseña. La contraseña debe cumplir las reglas de longitud establecidas en esta implementación.
 
-### 10. Verificación del almacenamiento seguro
+El flujo de autenticación es el siguiente:
 
-La estructura de la tabla se puede comprobar mediante:
+1. Recibir y validar las credenciales.
+2. Normalizar el correo electrónico.
+3. Buscar al usuario y recuperar expresamente su hash.
+4. Comparar la contraseña recibida con el hash mediante `bcrypt.compare`.
+5. Devolver los datos públicos del usuario si las credenciales son correctas.
+6. Rechazar las credenciales incorrectas mediante `401 Unauthorized`.
+
+La respuesta de inicio de sesión no debe exponer `passwordHash`.
+
+Cuando el usuario no existe o la contraseña es incorrecta, el servicio debe utilizar un error de autenticación que no revele cuál de las dos comprobaciones falló.
+
+### 7. Respuestas HTTP de autenticación
+
+| Situación | Código HTTP | Descripción |
+|---|---|---|
+| Registro exitoso | `201 Created` | Se creó la cuenta |
+| Inicio de sesión exitoso | `200 OK` | Las credenciales fueron aceptadas |
+| Datos inválidos | `400 Bad Request` | Falló una validación |
+| Credenciales incorrectas | `401 Unauthorized` | No se pudo autenticar al usuario |
+| Correo duplicado | `409 Conflict` | El correo ya está registrado |
+
+Los códigos y mensajes definitivos deben coincidir con las respuestas reales obtenidas al probar los endpoints.
+
+### 8. Verificación en PostgreSQL
+
+La tabla `users` almacena el identificador, el correo, el hash de la contraseña y la fecha de creación.
+
+Para consultar los usuarios sin mostrar información sensible:
 
 ```sql
-SELECT column_name
-FROM information_schema.columns
-WHERE table_name = 'users'
-ORDER BY ordinal_position;
+SELECT id, email, "createdAt"
+FROM users
+ORDER BY id;
 ```
 
-Para inspeccionar el hash sin mostrarlo completo:
+Para comprobar la existencia y la longitud del hash sin mostrarlo completo:
 
 ```sql
 SELECT
@@ -519,10 +532,15 @@ SELECT
     LEFT("passwordHash", 2) AS hash_inicio,
     LENGTH("passwordHash") AS longitud_hash
 FROM users
-WHERE email = 'ana@example.com';
+WHERE email IN (
+    'ana@example.com',
+    'prueba.semana8@example.com'
+);
 ```
 
-En la prueba realizada se observó el prefijo `$2` y una longitud de 60 caracteres para el hash de bcrypt.
+Los correos utilizados en la consulta deben corresponder a usuarios existentes en la base de datos.
+
+En las comprobaciones realizadas se observó el prefijo `$2` y una longitud de 60 caracteres para los hashes consultados.
 
 Para consultar únicamente los usuarios y sus correos:
 
@@ -534,18 +552,43 @@ ORDER BY id;
 
 Esta última consulta permite comprobar los registros existentes sin mostrar hashes ni contraseñas.
 
-### 11. Alcance de esta etapa
+### 9. Evidencias de la Semana 8 — Etapa 3
 
-En esta sesión se trabajó en el registro de usuarios, las validaciones del DTO, la normalización del correo, el hash con bcrypt, la persistencia en PostgreSQL y el rechazo de correos duplicados.
+Las capturas de esta etapa se organizan en:
 
-Esta sección documenta la funcionalidad de registro implementada. El inicio de sesión, la verificación de credenciales y la emisión y validación de tokens JWT deben documentarse cuando se implementen y comprueben.
+```text
+evidencias/actuacion6/
+```
+
+La carpeta contiene las evidencias numeradas del 01 al 11, correspondientes a las comprobaciones realizadas durante la Semana 8.
+
+Las capturas documentan las pruebas de los módulos de usuarios y autenticación, el registro, las validaciones, el inicio de sesión y la persistencia en PostgreSQL, según el contenido real de cada archivo.
+
+Se deben conservar los nombres existentes de las capturas y relacionar cada una con la prueba que realmente muestra.
+
+### 10. Alcance actual de la autenticación
+
+El alcance de esta etapa comprende:
+
+- Registro de usuarios.
+- Inicio de sesión.
+- Validación de datos mediante DTOs.
+- Normalización del correo electrónico.
+- Hash de contraseñas mediante bcrypt.
+- Verificación de contraseñas mediante `bcrypt.compare`.
+- Persistencia de cuentas en PostgreSQL.
+- Restricción de unicidad del correo.
+- Respuestas que no exponen el hash de la contraseña.
+- Manejo de credenciales incorrectas mediante `401 Unauthorized`.
+
+La emisión y validación de tokens JWT, los guards de autenticación y la autorización mediante roles no forman parte del alcance implementado que se documenta en este avance. Estas funcionalidades deberán añadirse cuando estén desarrolladas y verificadas.
 
 ## Modelo de datos
 
 El modelo académico principal relaciona tres entidades:
 
 ```text
-Student 1 ─────── N Enrollment N ─────── 1 Course
+Student 1 ───── N Enrollment N ───── 1 Course
 ```
 
 - **Student:** almacena la información de los estudiantes.
@@ -899,13 +942,14 @@ GET /enrollments
 
 ## Endpoints de usuarios y autenticación
 
-### Endpoint disponible
+### Endpoints disponibles
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/auth/register` | Registrar un usuario con correo y contraseña |
+| `POST` | `/auth/register` | Registrar una cuenta |
+| `POST` | `/auth/login` | Iniciar sesión y verificar credenciales |
 
-### Registrar un usuario
+### Registro de usuarios
 
 Solicitud:
 
@@ -914,8 +958,6 @@ POST /auth/register
 Content-Type: application/json
 ```
 
-Cuerpo:
-
 ```json
 {
   "email": "ana@example.com",
@@ -923,7 +965,7 @@ Cuerpo:
 }
 ```
 
-Respuesta de ejemplo:
+Respuesta ilustrativa:
 
 ```json
 {
@@ -933,29 +975,50 @@ Respuesta de ejemplo:
 }
 ```
 
-La respuesta no incluye el hash de la contraseña.
+La respuesta no incluye el hash de la contraseña. Para repetir la prueba, se debe utilizar un correo que no esté registrado previamente.
+
+### Inicio de sesión
+
+Solicitud:
+
+```http
+POST /auth/login
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "ana@example.com",
+  "password": "ClaveSegura123"
+}
+```
+
+La API valida los datos mediante `LoginDto`, normaliza el correo, busca al usuario y recupera expresamente el hash almacenado. Después utiliza `bcrypt.compare` para verificar la contraseña.
+
+Si las credenciales son correctas, responde con `200 OK` y los datos públicos del usuario. Si el usuario no existe o la contraseña es incorrecta, debe responder con `401 Unauthorized` sin revelar cuál de las dos condiciones falló.
 
 ### Respuestas de error
 
 | Situación | Código HTTP | Descripción |
 |---|---|---|
-| Registro exitoso | `201 Created` | El usuario fue creado |
-| Correo inválido | `400 Bad Request` | El correo no cumple el formato esperado |
-| Contraseña demasiado corta | `400 Bad Request` | La contraseña tiene menos de 8 caracteres |
+| Registro exitoso | `201 Created` | La cuenta fue creada |
+| Inicio de sesión exitoso | `200 OK` | Las credenciales fueron aceptadas |
+| Correo o contraseña con formato inválido | `400 Bad Request` | Los datos no cumplen las validaciones |
+| Usuario inexistente o contraseña incorrecta | `401 Unauthorized` | No se pudo autenticar al usuario |
 | Correo duplicado | `409 Conflict` | El correo ya está registrado |
 
-Los mensajes exactos de validación dependen de las reglas configuradas en el DTO.
+Los mensajes exactos de validación dependen de las reglas configuradas en los DTOs y de las excepciones implementadas.
 
-### Seguridad del registro
+### Consideraciones de seguridad
 
-- Los correos se normalizan a minúsculas y se eliminan espacios externos.
+- Los correos se normalizan antes de registrar o buscar cuentas.
 - La contraseña se transforma en un hash mediante bcrypt.
 - El hash se almacena en `passwordHash`.
 - El campo `passwordHash` no se selecciona automáticamente en consultas ordinarias.
-- La respuesta de registro no expone contraseñas ni hashes.
+- El hash se recupera expresamente cuando se necesita verificar la contraseña.
+- Las respuestas no deben exponer contraseñas ni hashes.
 - La unicidad del correo se comprueba desde el servicio y la base de datos.
-
-El endpoint de registro no debe confundirse con un endpoint de inicio de sesión. Las funciones de autenticación mediante credenciales y JWT se documentarán cuando estén implementadas y verificadas.
+- El inicio de sesión descrito no implica que existan JWT, guards o roles.
 
 ## Validaciones y respuestas HTTP
 
@@ -963,9 +1026,10 @@ La API utiliza DTOs, `class-validator`, `class-transformer` y un `ValidationPipe
 
 | Código | Significado | Ejemplo |
 |---|---|---|
-| `200 OK` | Consulta correcta | Listar estudiantes o matrículas |
+| `200 OK` | Consulta o inicio de sesión correcto | Listar estudiantes o autenticar un usuario |
 | `201 Created` | Recurso creado | Crear un estudiante, curso, matrícula o usuario |
 | `400 Bad Request` | Solicitud o parámetro inválido | `page=0`, `limit=100` o correo inválido |
+| `401 Unauthorized` | Credenciales no válidas | Inicio de sesión fallido |
 | `404 Not Found` | Recurso inexistente | Consultar un estudiante inexistente |
 | `409 Conflict` | Conflicto con los datos | Matrícula duplicada, estudiante inactivo o correo duplicado |
 
@@ -997,7 +1061,7 @@ No se permite registrar dos veces la misma combinación:
 studentId + courseId
 ```
 
-Respuesta de ejemplo:
+Respuesta ilustrativa:
 
 ```json
 {
@@ -1019,7 +1083,7 @@ Ejemplo del estado:
 }
 ```
 
-Respuesta de ejemplo:
+Respuesta ilustrativa:
 
 ```json
 {
@@ -1259,6 +1323,32 @@ evidencias/actuacion5/
 | `7. Rechazar contraseña corta.png` | Validación de longitud mínima de contraseña |
 | `8. Verificar que no se crearon usuarios inválidos.png` | Comprobación de los registros después de los intentos inválidos |
 
+### Evidencias de la Semana 8 — Etapa 3
+
+Las capturas del avance de cuentas y autenticación se encuentran en:
+
+```text
+evidencias/actuacion6/
+```
+
+La carpeta contiene 11 capturas numeradas del 01 al 11. Las evidencias deben corresponder a las verificaciones realmente realizadas durante esta etapa.
+
+Entre las comprobaciones relevantes se encuentran:
+
+1. Existencia de la tabla `users`.
+2. Registro de un usuario mediante Thunder Client.
+3. Consulta de los datos públicos del usuario sin mostrar la contraseña.
+4. Verificación del hash bcrypt en PostgreSQL.
+5. Rechazo de un correo duplicado con `409 Conflict`.
+6. Rechazo de un correo inválido.
+7. Rechazo de una contraseña que no cumple la longitud mínima.
+8. Comprobación de que las solicitudes inválidas no crean cuentas.
+9. Inicio de sesión con credenciales válidas.
+10. Rechazo del inicio de sesión con credenciales incorrectas.
+11. Comprobaciones adicionales del módulo de autenticación y su funcionamiento.
+
+Esta lista describe el alcance de las evidencias. Cada punto debe coincidir con el contenido real de su captura; se deben conservar los nombres existentes en el repositorio y no atribuir a una imagen una comprobación que no muestre.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -1289,6 +1379,14 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - Rechazo de correos inválidos.
 - Rechazo de contraseñas demasiado cortas.
 - Verificación del almacenamiento del hash y de la respuesta sin contraseña.
+- Inicio de sesión mediante `POST /auth/login`.
+- Validación de credenciales mediante `bcrypt.compare`.
+- Rechazo de credenciales incorrectas con `401 Unauthorized`.
+- Comprobación de la unicidad del correo en PostgreSQL.
+- Verificación de que el hash bcrypt no se expone en las respuestas.
+- Comprobación de la persistencia de las cuentas en PostgreSQL.
+
+Los puntos de autenticación deben considerarse pruebas realizadas solo cuando se hayan confirmado con las solicitudes HTTP, las consultas a la base de datos o el código correspondiente.
 
 ## Persistencia de datos
 
@@ -1313,6 +1411,8 @@ users
 Esta tabla almacena el correo, el hash de la contraseña y la fecha de creación del usuario.
 
 La persistencia se puede verificar reiniciando la API y consultando nuevamente los registros almacenados, siempre que se utilice la misma base de datos.
+
+La autenticación incorpora la tabla `users`, destinada a almacenar las cuentas de acceso. La contraseña original no se almacena en texto plano. La persistencia de las cuentas se comprueba consultando PostgreSQL y verificando que los registros continúan disponibles después de reiniciar la API.
 
 ## Seguridad de credenciales
 
@@ -1346,14 +1446,18 @@ El comando debe identificar `.env` como un archivo ignorado.
 
 ### Seguridad de contraseñas de usuarios
 
-Las contraseñas de las cuentas no se almacenan en texto plano. El registro aplica bcrypt antes de guardar el valor en `passwordHash`.
+Las contraseñas de las cuentas no se almacenan en texto plano. El registro aplica bcrypt antes de guardar el valor en `passwordHash`. Para comprobar las credenciales durante el inicio de sesión se utiliza `bcrypt.compare`.
 
 Además:
 
 - La entidad establece `select: false` para `passwordHash`.
 - La respuesta de registro contiene los datos públicos del usuario, no su contraseña ni el hash.
-- Las consultas para verificar el hash deben limitar la información mostrada.
+- El hash se recupera expresamente cuando se necesita verificar una contraseña.
+- Los correos se normalizan antes de registrar o buscar cuentas.
+- La base de datos mantiene la restricción de unicidad del correo.
 - No se deben incluir contraseñas reales, tokens ni otros secretos en el README, en capturas de pantalla o en los commits.
+
+La autenticación documentada corresponde al registro y al inicio de sesión. No se debe afirmar que existen tokens JWT, guards o roles hasta que estas funcionalidades estén implementadas y verificadas.
 
 ## Comandos disponibles
 
@@ -1440,22 +1544,39 @@ Las funcionalidades documentadas incluyen:
 - Validaciones globales de solicitudes HTTP.
 - Configuración de `synchronize` según el ambiente.
 - Módulo de usuarios con entidad y servicio.
-- Registro inicial de usuarios mediante `POST /auth/register`.
+- Registro de usuarios mediante `POST /auth/register`.
+- Inicio de sesión mediante `POST /auth/login`.
 - Validación y normalización del correo electrónico.
 - Hash de contraseñas mediante bcrypt.
+- Verificación de contraseñas mediante `bcrypt.compare`.
 - Prevención de correos duplicados.
-- Respuestas de registro sin contraseña ni hash.
-- Evidencias de las pruebas de registro y validaciones.
+- Respuestas de autenticación sin contraseña ni hash.
+- Evidencias de las pruebas de registro, inicio de sesión y validaciones.
 
 En la Semana 6 se amplió `GET /students` para incorporar búsqueda textual, filtros combinables, paginación, ordenamiento controlado y validación de parámetros.
 
 En la Semana 7 se trabajó en la configuración de la aplicación mediante variables de entorno, la validación de la configuración, el uso de `ConfigService` y la adaptación de la sincronización de TypeORM al ambiente de ejecución.
 
-En la Semana 8, Sesión 15, se incorporaron los módulos `users` y `auth` y se verificó el registro inicial de usuarios, el almacenamiento de hashes mediante bcrypt y el rechazo de solicitudes con datos inválidos o correos duplicados.
+### Avance de la Semana 8 — Etapa 3
 
-El inicio de sesión, la emisión y validación de tokens JWT y la protección de rutas deben añadirse al estado del proyecto cuando estén implementados y probados.
+Se ampliaron los módulos `users` y `auth` para gestionar las cuentas de acceso de CourseHub API.
 
-Las pruebas y capturas correspondientes deben reflejar el comportamiento real de la implementación actual.
+La implementación contempla el registro y el inicio de sesión mediante correo electrónico y contraseña, validaciones mediante DTOs, normalización del correo, almacenamiento de hashes con bcrypt y verificación de contraseñas mediante `bcrypt.compare`.
+
+La tabla `users` dispone de una restricción de unicidad para el correo electrónico. También se utiliza `select: false` para evitar que el hash de la contraseña se incluya automáticamente en las consultas ordinarias.
+
+Los endpoints de autenticación son:
+
+- `POST /auth/register`
+- `POST /auth/login`
+
+Los códigos HTTP previstos son `201 Created` para el registro, `200 OK` para el inicio de sesión correcto, `400 Bad Request` para datos inválidos, `401 Unauthorized` para credenciales incorrectas y `409 Conflict` para correos duplicados, de acuerdo con las reglas implementadas.
+
+Las evidencias de esta etapa se organizan en `evidencias/actuacion6/`.
+
+El alcance actual no incluye la emisión y validación de JWT, los guards de autenticación ni los roles de autorización. Estas funcionalidades deberán documentarse cuando estén implementadas y verificadas.
+
+Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
 
 ## Licencia
 
