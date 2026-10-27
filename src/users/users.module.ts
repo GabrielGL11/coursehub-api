@@ -9,4 +9,3 @@ import { User } from './entities/user.entity.js';
   exports: [UsersService, TypeOrmModule],
 })
 export class UsersModule {}
-

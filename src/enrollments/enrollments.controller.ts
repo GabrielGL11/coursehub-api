@@ -1,38 +1,38 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { EnrollmentsService } from './enrollments.service.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
 import { EnrollmentsQueryDto } from './dto/enrollments-query.dto.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class EnrollmentsController {
-    constructor(
-        private readonly enrollmentsService: EnrollmentsService,
-    ) {}
-    @Post('enrollments')
-    create(
-        @Body() createEnrollmentDto: CreateEnrollmentDto,
-    ) {
-        return this.enrollmentsService.create(
-            createEnrollmentDto,
-        );
-    }
-    @Get('enrollments')
-    findAll(@Query() query: EnrollmentsQueryDto) {
-        return this.enrollmentsService.findAll(query);
-    }
-    @Get('students/:studentId/enrollments')
-    findByStudent(@Param('studentId') studentId: string) {
-        return this.enrollmentsService.findByStudent(
-            Number(studentId),
-        );
-    }
-    @Get('courses/:courseId/enrollments')
-    findByCourse(@Param('courseId') courseId: string) {
-        return this.enrollmentsService.findByCourse(
-            Number(courseId),
-        );
-    }
-    @Delete('enrollments/:id')
-    remove(@Param('id') id: string) {
-        return this.enrollmentsService.remove(Number(id));
-    }
+  constructor(
+    private readonly enrollmentsService: EnrollmentsService,
+  ) {}
+
+  @Post('enrollments')
+  create(@Body() createEnrollmentDto: CreateEnrollmentDto) {
+    return this.enrollmentsService.create(createEnrollmentDto);
+  }
+
+  @Get('enrollments')
+  findAll(@Query() query: EnrollmentsQueryDto) {
+    return this.enrollmentsService.findAll(query);
+  }
+
+  @Get('students/:studentId/enrollments')
+  findByStudent(@Param('studentId') studentId: string) {
+    return this.enrollmentsService.findByStudent(Number(studentId));
+  }
+
+  @Get('courses/:courseId/enrollments')
+  findByCourse(@Param('courseId') courseId: string) {
+    return this.enrollmentsService.findByCourse(Number(courseId));
+  }
+
+  @Delete('enrollments/:id')
+  remove(@Param('id') id: string) {
+    return this.enrollmentsService.remove(Number(id));
+  }
 }

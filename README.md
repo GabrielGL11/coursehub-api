@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y registro e inicio de sesión de usuarios con almacenamiento seguro de contraseñas.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt y tokens JWT.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -19,6 +19,7 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Instalación y configuración](#instalación-y-configuración)
 - [Semana 7: configuración y variables de entorno](#semana-7-configuración-y-variables-de-entorno)
 - [Semana 8: usuarios y autenticación inicial](#semana-8-usuarios-y-autenticación-inicial)
+- [Semana 9: autenticación con JWT](#semana-9-autenticación-con-jwt)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -47,6 +48,7 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **class-validator:** validación de datos y parámetros.
 - **class-transformer:** transformación de parámetros y objetos.
 - **bcrypt:** hash y verificación de contraseñas.
+- **@nestjs/jwt:** firma y emisión de tokens JWT.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
@@ -75,7 +77,11 @@ Las principales funcionalidades incluyen:
 - Hash de contraseñas mediante bcrypt antes de almacenarlas.
 - Verificación de contraseñas mediante `bcrypt.compare`.
 - Prevención del registro de correos duplicados.
-- Respuestas de autenticación que no deben exponer el hash de la contraseña.
+- Respuestas de autenticación que no exponen el hash de la contraseña.
+- Emisión de tokens JWT al iniciar sesión correctamente.
+- Validación de tokens JWT mediante un guard de autenticación.
+- Consulta de los datos públicos del usuario autenticado.
+- Protección de la creación de matrículas mediante autenticación.
 
 ## Arquitectura
 
@@ -107,6 +113,9 @@ Por ejemplo, al crear una matrícula:
 POST /enrollments
        |
        v
+JwtAuthGuard
+       |
+       v
 EnrollmentsController
        |
        v
@@ -124,7 +133,9 @@ TypeORM Repository
 PostgreSQL
 ```
 
-En el registro de usuarios, el flujo incluye la validación de los datos, la comprobación del correo electrónico, el hash de la contraseña y la persistencia del nuevo usuario. En el inicio de sesión, se recupera expresamente el hash y se compara con la contraseña recibida mediante bcrypt.
+El guard valida la autenticación antes de permitir el acceso al controlador. Después, el servicio de matrículas aplica las validaciones y reglas de negocio correspondientes.
+
+En el registro de usuarios, el flujo incluye la validación de los datos, la comprobación del correo electrónico, el hash de la contraseña y la persistencia del nuevo usuario. En el inicio de sesión, se recupera expresamente el hash y se compara con la contraseña recibida mediante bcrypt. Si las credenciales son correctas, se emite un token JWT firmado.
 
 ## Estructura del proyecto
 
@@ -136,6 +147,8 @@ src/
 │   ├── dto/
 │   │   ├── register.dto.ts
 │   │   └── login.dto.ts
+│   ├── guards/
+│   │   └── jwt-auth.guard.ts
 │   ├── auth.controller.ts
 │   ├── auth.module.ts
 │   ├── auth.service.ts
@@ -177,7 +190,8 @@ src/
 evidencias/
 ├── actuacion3/
 ├── actuacion5/
-└── actuacion6/
+├── actuacion6/
+└── actuacion7/
 
 .env
 .env.example
@@ -235,6 +249,8 @@ DATABASE_PORT=5432
 DATABASE_NAME=coursehub
 DATABASE_USER=postgres
 DATABASE_PASSWORD=tu_password_local
+JWT_SECRET=replace-with-a-long-random-local-secret
+JWT_EXPIRES_IN=15m
 ```
 
 El valor `tu_password_local` es ilustrativo y debe sustituirse por la contraseña local de PostgreSQL.
@@ -284,6 +300,8 @@ Durante la Semana 7 se trabajó en la configuración de CourseHub API para evita
 | `DATABASE_NAME` | Nombre de la base de datos | `coursehub` |
 | `DATABASE_USER` | Usuario de PostgreSQL | `postgres` |
 | `DATABASE_PASSWORD` | Contraseña de PostgreSQL | Configurada localmente |
+| `JWT_SECRET` | Secreto para firmar tokens JWT; mínimo 32 caracteres | Secreto aleatorio local, nunca publicar |
+| `JWT_EXPIRES_IN` | Duración del token de acceso | `15m` |
 
 ### 2. Configuración mediante ConfigModule
 
@@ -304,6 +322,8 @@ Las validaciones incluyen:
 - `DATABASE_USER` es obligatorio.
 - `DATABASE_PASSWORD` es obligatorio.
 - `DATABASE_NAME` es obligatorio.
+- `JWT_SECRET` es obligatorio y debe tener al menos 32 caracteres.
+- `JWT_EXPIRES_IN` define la vigencia del token y usa `15m` por defecto.
 
 Si una variable no cumple las reglas establecidas, la aplicación informa un error de configuración durante el inicio.
 
@@ -342,14 +362,14 @@ Estas opciones complementan la validación de los datos y parámetros de los end
 ### 7. Archivos de configuración
 
 - `.env`: configuración local de la aplicación.
-- `.env.example`: plantilla con variables de ejemplo.
+- `.env.example`: plantilla con variables de ejemplo, incluidas `JWT_SECRET` y `JWT_EXPIRES_IN`.
 - `.gitignore`: excluye el archivo `.env` y otros archivos locales.
 - `src/app.module.ts`: configuración de módulos, Joi y TypeORM.
 - `src/main.ts`: configuración de validaciones globales y puerto HTTP.
 
 ## Semana 8: usuarios y autenticación inicial
 
-Durante la Semana 8, correspondiente al avance de la Etapa 3, se amplió el módulo de cuentas de CourseHub API. Además del registro de usuarios, se incorporó el inicio de sesión mediante correo electrónico y contraseña.
+Durante la Semana 8, correspondiente al avance de la Etapa 3, se amplió el módulo de cuentas de CourseHub API. Se incorporó el registro y el inicio de sesión mediante correo electrónico y contraseña.
 
 La implementación utiliza NestJS, TypeScript, PostgreSQL, TypeORM y bcrypt. Los módulos `users` y `auth` mantienen separadas la administración de las cuentas y la lógica de autenticación de los módulos académicos.
 
@@ -497,7 +517,7 @@ El flujo de autenticación es el siguiente:
 
 La respuesta de inicio de sesión no debe exponer `passwordHash`.
 
-Cuando el usuario no existe o la contraseña es incorrecta, el servicio debe utilizar un error de autenticación que no revele cuál de las dos comprobaciones falló.
+Cuando el usuario no existe o la contraseña es incorrecta, el servicio utiliza un error de autenticación que no revela cuál de las dos comprobaciones falló.
 
 ### 7. Respuestas HTTP de autenticación
 
@@ -566,7 +586,7 @@ Las capturas documentan las pruebas de los módulos de usuarios y autenticación
 
 Se deben conservar los nombres existentes de las capturas y relacionar cada una con la prueba que realmente muestra.
 
-### 10. Alcance actual de la autenticación
+### 10. Alcance de la Semana 8
 
 El alcance de esta etapa comprende:
 
@@ -581,7 +601,241 @@ El alcance de esta etapa comprende:
 - Respuestas que no exponen el hash de la contraseña.
 - Manejo de credenciales incorrectas mediante `401 Unauthorized`.
 
-La emisión y validación de tokens JWT, los guards de autenticación y la autorización mediante roles no forman parte del alcance implementado que se documenta en este avance. Estas funcionalidades deberán añadirse cuando estén desarrolladas y verificadas.
+En la Semana 8 se implementaron el registro y el inicio de sesión inicial. Posteriormente, en la Semana 9, se incorporaron la emisión y validación de tokens JWT, el guard de autenticación y la protección de rutas. Estos avances se describen en la siguiente sección.
+
+## Semana 9: autenticación con JWT
+
+Durante la Semana 9 se amplió la autenticación de CourseHub API para emitir tokens JWT después de verificar correctamente las credenciales, validar los tokens recibidos en las solicitudes HTTP y proteger determinadas rutas mediante un guard de autenticación.
+
+La implementación utiliza `@nestjs/jwt` y la configuración centralizada mediante `ConfigService`.
+
+### 1. Variables de entorno
+
+Se agregaron estas variables a `.env` y a la plantilla `.env.example`:
+
+```env
+JWT_SECRET=replace-with-a-long-random-local-secret
+JWT_EXPIRES_IN=15m
+```
+
+`JWT_SECRET` es obligatorio y debe tener al menos 32 caracteres. Debe utilizarse un secreto aleatorio y privado en el entorno local. No se debe escribir el secreto real en el README, subirlo a Git ni compartirlo en capturas.
+
+`JWT_EXPIRES_IN` configura la vigencia del token y utiliza `15m` como valor predeterminado.
+
+La configuración se valida con Joi durante el inicio de la aplicación. Si falta `JWT_SECRET`, la API termina el inicio con un error de validación, en lugar de arrancar con una configuración incompleta.
+
+### 2. Firma y contenido del token
+
+El módulo `auth` configura `JwtModule` de forma asíncrona mediante `ConfigService`. El servicio de autenticación firma el token únicamente después de comprobar la contraseña con `bcrypt.compare`.
+
+El payload contiene los datos mínimos de identidad:
+
+```json
+{
+  "sub": 2,
+  "email": "prueba.semana8@example.com",
+  "iat": 1793045712,
+  "exp": 1793046612
+}
+```
+
+Este es un ejemplo ilustrativo de la estructura del token. `sub` identifica al usuario, `email` contiene su correo normalizado, `iat` representa el momento de emisión y `exp` el momento de expiración. Con `JWT_EXPIRES_IN=15m`, la diferencia entre `iat` y `exp` es de 900 segundos.
+
+Un JWT firmado no está cifrado. Por ello, el payload no debe incluir contraseñas, `passwordHash`, secretos ni otros datos sensibles. El servicio pasa a `signAsync` un objeto explícito con `sub` y `email`, no la entidad TypeORM completa.
+
+### 3. Respuesta de inicio de sesión
+
+`POST /auth/login` devuelve `200 OK` cuando las credenciales son válidas. La respuesta contiene `accessToken` y los datos públicos del usuario.
+
+Ejemplo ilustrativo:
+
+```json
+{
+  "accessToken": "<token-jwt-generado>",
+  "user": {
+    "id": 2,
+    "email": "prueba.semana8@example.com",
+    "createdAt": "2026-10-20T18:44:45.723Z"
+  }
+}
+```
+
+El valor `<token-jwt-generado>` es un marcador, no un token real. La respuesta no debe exponer la contraseña ni `passwordHash`.
+
+Si el correo no existe o la contraseña es incorrecta, la API devuelve el mismo error genérico `401 Unauthorized` y no entrega un token. Los datos inválidos continúan respondiendo `400 Bad Request`.
+
+### 4. Guard de autenticación JWT
+
+Se incorporó el archivo:
+
+```text
+src/auth/guards/jwt-auth.guard.ts
+```
+
+El guard utiliza `JwtService` para validar el token recibido en la solicitud. Comprueba la firma y la vigencia del JWT antes de permitir el acceso a los controladores protegidos.
+
+El formato esperado del encabezado HTTP es:
+
+```http
+Authorization: Bearer <token-jwt>
+```
+
+El marcador `<token-jwt>` debe sustituirse por el token obtenido mediante `POST /auth/login`.
+
+Si el token no se envía, está alterado o ha expirado, la solicitud protegida es rechazada con `401 Unauthorized`.
+
+El guard se integra con el módulo de autenticación para que pueda utilizarse desde otros módulos, incluido `enrollments`.
+
+### 5. Endpoint de usuario autenticado
+
+Se incorporó el endpoint:
+
+**`GET /auth/me`**
+
+Este endpoint utiliza `JwtAuthGuard` y permite consultar los datos públicos del usuario identificado mediante el token.
+
+Para probarlo, primero se debe iniciar sesión con `POST /auth/login` y copiar el `accessToken` recibido.
+
+En Thunder Client, configurar la solicitud:
+
+```http
+GET /auth/me
+Authorization: Bearer <token-jwt>
+```
+
+Con un token válido, la API responde `200 OK` con los datos públicos del usuario autenticado.
+
+La respuesta no debe incluir la contraseña ni el campo `passwordHash`.
+
+Los casos de autenticación comprobados son:
+
+| Prueba | Resultado |
+|---|---|
+| Token válido | `200 OK` |
+| Solicitud sin token | `401 Unauthorized` |
+| Token alterado | `401 Unauthorized` |
+
+### 6. Protección de la creación de matrículas
+
+La ruta `POST /enrollments` utiliza `JwtAuthGuard` para exigir autenticación antes de crear una matrícula.
+
+La solicitud debe incluir el encabezado:
+
+```http
+Authorization: Bearer <token-jwt>
+Content-Type: application/json
+```
+
+Ejemplo de cuerpo:
+
+```json
+{
+  "studentId": 1,
+  "courseId": 1
+}
+```
+
+El DTO `CreateEnrollmentDto` valida que `studentId` y `courseId` sean números enteros positivos.
+
+La protección de la ruta no reemplaza las validaciones ni las reglas de negocio existentes. Una solicitud autenticada debe cumplir las condiciones del módulo de matrículas:
+
+1. El estudiante debe existir.
+2. El estudiante debe estar activo.
+3. El curso debe existir.
+4. No debe existir una matrícula duplicada para el mismo estudiante y curso.
+5. Los identificadores deben cumplir las validaciones del DTO.
+
+Las pruebas realizadas comprobaron que una solicitud sin token recibe `401 Unauthorized` y no crea un registro en PostgreSQL.
+
+También se comprobó que una solicitud autenticada con un `studentId` negativo recibe `400 Bad Request` y que intentar crear una matrícula duplicada recibe `409 Conflict`.
+
+### 7. Pruebas realizadas
+
+| Prueba | Resultado comprobado |
+|---|---|
+| Inicio de sesión correcto | `200 OK` y emisión del JWT |
+| Credenciales incorrectas | `401 Unauthorized` |
+| Usuario sin `passwordHash` en la respuesta | No se expone el hash |
+| Payload del JWT | Contiene `sub`, `email`, `iat` y `exp` |
+| Falta de `JWT_SECRET` | La configuración impide iniciar la aplicación |
+| Cambio del secreto de firma | Un token firmado con otro secreto no se valida con el secreto actual |
+| `GET /auth/me` con token válido | `200 OK` |
+| `GET /auth/me` sin token | `401 Unauthorized` |
+| `GET /auth/me` con token alterado | `401 Unauthorized` |
+| `POST /enrollments` sin token | `401 Unauthorized` |
+| Verificación posterior en PostgreSQL | No se produjo una inserción por la solicitud no autenticada |
+| Matrícula con identificador negativo | `400 Bad Request` |
+| Matrícula duplicada | `409 Conflict` |
+
+Las respuestas indicadas corresponden a las pruebas realizadas durante el avance. Para reproducirlas, se deben utilizar los datos y las credenciales configurados en el entorno local.
+
+### 8. Evidencias de la Semana 9
+
+Las capturas de la Semana 9 se encuentran en:
+
+```text
+evidencias/actuacion7/
+```
+
+| Archivo | Comprobación |
+|---|---|
+| `01. Login correcto con JWT.png` | Inicio de sesión correcto con `accessToken` y datos públicos del usuario |
+| `02. Credenciales incorrectas sin token.png` | Rechazo de credenciales incorrectas con `401 Unauthorized` |
+| `03. Usuario sin passwordHash.png` | Respuesta sin el hash de contraseña |
+| `04. Payload JWT inspeccionado.png` | Payload con `sub`, `email`, `iat` y `exp` |
+| `05. Validacion JWT_SECRET requerido.png` | Validación de `JWT_SECRET` |
+| `06. Aplicacion no inicia sin JWT_SECRET.png` | La aplicación no inicia si falta el secreto |
+| `06. Prerequisito aplicacion no inicia sin JWT_SECRET.png` | Captura complementaria del caso de configuración, si se conserva |
+| `06. Restauracion del archivo .env.png` | Restauración de la configuración local después de la prueba negativa |
+| `07. Token anterior con secreto cambiado.png` | Comprobación de que un token no se valida con otro secreto |
+| `08. Variables JWT en ejemplo.png` | Variables JWT en la plantilla de configuración |
+| `09. Login y payload JWT.png` | Inicio de sesión y estructura del payload |
+| `10. Auth me con Bearer valido.png` | Consulta del usuario autenticado con token válido |
+| `11. Auth me sin token.png` | Rechazo de solicitud sin token |
+| `12. Auth me con token alterado.png` | Rechazo de token alterado |
+| `13. Matricula sin token.png` | Rechazo de creación de matrícula sin autenticación |
+| `14. Verificar que no hubo insercion.png` | Comprobación de que la solicitud no autenticada no insertó una matrícula |
+| `15. DTO rechaza datos invalidos.png` | Validación de identificadores de matrícula inválidos |
+| `16. Regla matricula duplicada.png` | Rechazo de una matrícula duplicada |
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos. Para mostrar el contenido del payload basta con presentar sus campos relevantes: `sub`, `email`, `iat` y `exp`.
+
+La prueba de cambio de secreto demuestra que un token firmado con otro secreto no se valida con la configuración actual. La protección de las rutas se comprueba separadamente mediante las solicitudes a `GET /auth/me` y `POST /enrollments`.
+
+### 9. Archivos relacionados con la implementación
+
+Los archivos principales relacionados con la autenticación JWT son:
+
+- `src/auth/guards/jwt-auth.guard.ts`: validación de la autenticación mediante JWT.
+- `src/auth/auth.controller.ts`: endpoints de autenticación, incluido `GET /auth/me`.
+- `src/auth/auth.service.ts`: registro, inicio de sesión y emisión del token.
+- `src/auth/auth.module.ts`: configuración e integración del módulo de autenticación.
+- `src/users/users.service.ts`: consulta de los datos de las cuentas.
+- `src/enrollments/enrollments.controller.ts`: protección de la creación de matrículas.
+- `src/enrollments/enrollments.module.ts`: integración con el módulo de autenticación.
+- `src/enrollments/dto/create-enrollment.dto.ts`: validación de los identificadores de la matrícula.
+- `src/app.module.ts`: configuración general de la aplicación y variables de entorno.
+- `src/main.ts`: configuración de validaciones globales.
+
+Los nombres deben mantenerse sincronizados con los archivos que existan realmente en el repositorio.
+
+### 10. Alcance final de la Semana 9
+
+Esta etapa incorpora:
+
+- Emisión de tokens JWT después de un inicio de sesión válido.
+- Configuración y validación de `JWT_SECRET`.
+- Configuración de expiración mediante `JWT_EXPIRES_IN`.
+- Validación de tokens mediante `JwtAuthGuard`.
+- Consulta del usuario autenticado mediante `GET /auth/me`.
+- Protección de `POST /enrollments`.
+- Rechazo de solicitudes sin token.
+- Rechazo de tokens alterados o inválidos.
+- Validación de identificadores de matrícula mediante DTOs.
+- Conservación de las reglas de negocio de las matrículas.
+- Comprobación de que las solicitudes no autenticadas no crean matrículas.
+
+La autorización mediante roles no se incluye en este avance porque no forma parte de las funcionalidades implementadas y verificadas.
 
 ## Modelo de datos
 
@@ -656,7 +910,7 @@ Ejemplo de solicitud:
 }
 ```
 
-La API verifica que existan el estudiante y el curso, que el estudiante esté activo y que no exista una matrícula duplicada para la misma combinación.
+La API verifica que existan el estudiante y el curso, que el estudiante esté activo y que no exista una matrícula duplicada para la misma combinación. En la implementación actual, la creación de matrículas también requiere autenticación mediante JWT.
 
 ### Usuario
 
@@ -667,7 +921,7 @@ La API verifica que existan el estudiante y el curso, que el estudiante esté ac
 | `passwordHash` | Hash de la contraseña |
 | `createdAt` | Fecha de creación |
 
-El campo `passwordHash` almacena el resultado de bcrypt, no la contraseña en texto plano.
+El campo `passwordHash` almacena el resultado de bcrypt, no la contraseña en texto plano. La propiedad utiliza `select: false` para evitar su inclusión automática en consultas ordinarias.
 
 ## Endpoints de estudiantes
 
@@ -856,15 +1110,20 @@ Ejemplo:
 | Método | Ruta | Descripción |
 |---|---|---|
 | `GET` | `/enrollments` | Consultar matrículas con búsqueda, filtros y paginación |
-| `POST` | `/enrollments` | Crear una matrícula |
+| `POST` | `/enrollments` | Crear una matrícula; requiere JWT |
 | `GET` | `/students/:studentId/enrollments` | Consultar matrículas de un estudiante |
 | `GET` | `/courses/:courseId/enrollments` | Consultar matrículas de un curso |
 | `DELETE` | `/enrollments/:id` | Cancelar una matrícula |
 
 ### Crear una matrícula
 
+**Endpoint protegido:** `POST /enrollments`
+
+La solicitud debe incluir un token JWT válido:
+
 ```http
 POST /enrollments
+Authorization: Bearer <token-jwt>
 Content-Type: application/json
 ```
 
@@ -879,10 +1138,14 @@ Cuerpo:
 
 La operación comprueba:
 
-1. Que el estudiante exista.
-2. Que el estudiante esté activo.
-3. Que el curso exista.
-4. Que no exista una matrícula previa para el mismo estudiante y curso.
+1. Que el usuario esté autenticado mediante un token JWT válido.
+2. Que los identificadores enviados sean enteros positivos.
+3. Que el estudiante exista.
+4. Que el estudiante esté activo.
+5. Que el curso exista.
+6. Que no exista una matrícula previa para el mismo estudiante y curso.
+
+Una solicitud sin token se rechaza con `401 Unauthorized`. Si los identificadores no cumplen las validaciones del DTO, la solicitud responde con `400 Bad Request`. Una matrícula duplicada se rechaza con `409 Conflict`.
 
 ### Consultar matrículas
 
@@ -947,7 +1210,8 @@ GET /enrollments
 | Método | Ruta | Descripción |
 |---|---|---|
 | `POST` | `/auth/register` | Registrar una cuenta |
-| `POST` | `/auth/login` | Iniciar sesión y verificar credenciales |
+| `POST` | `/auth/login` | Iniciar sesión y obtener un JWT |
+| `GET` | `/auth/me` | Obtener los datos públicos del usuario autenticado; requiere JWT |
 
 ### Registro de usuarios
 
@@ -993,9 +1257,24 @@ Content-Type: application/json
 }
 ```
 
-La API valida los datos mediante `LoginDto`, normaliza el correo, busca al usuario y recupera expresamente el hash almacenado. Después utiliza `bcrypt.compare` para verificar la contraseña.
+La API valida los datos mediante `LoginDto`, normaliza el correo, busca al usuario y recupera expresamente el hash almacenado. Después utiliza `bcrypt.compare` para verificar la contraseña. Si las credenciales son válidas, genera un token JWT firmado con el secreto configurado y devuelve `accessToken` junto con el objeto público `user`.
 
-Si las credenciales son correctas, responde con `200 OK` y los datos públicos del usuario. Si el usuario no existe o la contraseña es incorrecta, debe responder con `401 Unauthorized` sin revelar cuál de las dos condiciones falló.
+Si las credenciales son correctas, responde con `200 OK`. Si el usuario no existe o la contraseña es incorrecta, responde con el mismo error genérico `401 Unauthorized`, sin revelar cuál de las dos condiciones falló ni entregar un token.
+
+### Consultar el usuario autenticado
+
+Solicitud:
+
+```http
+GET /auth/me
+Authorization: Bearer <token-jwt>
+```
+
+El endpoint requiere un JWT válido. Cuando el token es aceptado, devuelve los datos públicos del usuario autenticado.
+
+La respuesta no incluye la contraseña ni `passwordHash`.
+
+Si no se proporciona un token válido, la solicitud se rechaza con `401 Unauthorized`.
 
 ### Respuestas de error
 
@@ -1005,6 +1284,7 @@ Si las credenciales son correctas, responde con `200 OK` y los datos públicos d
 | Inicio de sesión exitoso | `200 OK` | Las credenciales fueron aceptadas |
 | Correo o contraseña con formato inválido | `400 Bad Request` | Los datos no cumplen las validaciones |
 | Usuario inexistente o contraseña incorrecta | `401 Unauthorized` | No se pudo autenticar al usuario |
+| Token ausente, alterado o inválido en una ruta protegida | `401 Unauthorized` | Se requiere autenticación válida |
 | Correo duplicado | `409 Conflict` | El correo ya está registrado |
 
 Los mensajes exactos de validación dependen de las reglas configuradas en los DTOs y de las excepciones implementadas.
@@ -1018,7 +1298,11 @@ Los mensajes exactos de validación dependen de las reglas configuradas en los D
 - El hash se recupera expresamente cuando se necesita verificar la contraseña.
 - Las respuestas no deben exponer contraseñas ni hashes.
 - La unicidad del correo se comprueba desde el servicio y la base de datos.
-- El inicio de sesión descrito no implica que existan JWT, guards o roles.
+- El inicio de sesión emite un JWT firmado.
+- Las rutas protegidas utilizan `JwtAuthGuard` para validar los tokens.
+- La creación de matrículas mediante `POST /enrollments` requiere autenticación.
+- El payload del JWT no debe contener contraseñas ni secretos.
+- La autorización mediante roles no forma parte del alcance actual.
 
 ## Validaciones y respuestas HTTP
 
@@ -1026,10 +1310,10 @@ La API utiliza DTOs, `class-validator`, `class-transformer` y un `ValidationPipe
 
 | Código | Significado | Ejemplo |
 |---|---|---|
-| `200 OK` | Consulta o inicio de sesión correcto | Listar estudiantes o autenticar un usuario |
+| `200 OK` | Consulta o inicio de sesión correcto | Listar estudiantes, iniciar sesión o consultar `/auth/me` con JWT válido |
 | `201 Created` | Recurso creado | Crear un estudiante, curso, matrícula o usuario |
-| `400 Bad Request` | Solicitud o parámetro inválido | `page=0`, `limit=100` o correo inválido |
-| `401 Unauthorized` | Credenciales no válidas | Inicio de sesión fallido |
+| `400 Bad Request` | Solicitud o parámetro inválido | `page=0`, `limit=100`, correo inválido o identificador de matrícula no positivo |
+| `401 Unauthorized` | Autenticación no válida | Credenciales incorrectas, token ausente o token inválido en ruta protegida |
 | `404 Not Found` | Recurso inexistente | Consultar un estudiante inexistente |
 | `409 Conflict` | Conflicto con los datos | Matrícula duplicada, estudiante inactivo o correo duplicado |
 
@@ -1052,6 +1336,17 @@ GET /students?page=0
 ```
 
 El número de página debe ser mayor o igual a uno.
+
+Para comprobar la validación del DTO de matrículas, enviar una solicitud autenticada con:
+
+```json
+{
+  "studentId": -1,
+  "courseId": 1
+}
+```
+
+El identificador negativo debe ser rechazado con `400 Bad Request`.
 
 ### Matrículas duplicadas
 
@@ -1157,7 +1452,7 @@ Solicitud:
 }
 ```
 
-La matrícula debe almacenarse correctamente cuando ambos registros existen, el estudiante está activo y no existe una matrícula duplicada.
+La matrícula debe almacenarse correctamente cuando ambos registros existen, el estudiante está activo y no existe una matrícula duplicada. En la implementación actual, la solicitud debe incluir también un token JWT válido.
 
 ### 3. Reiniciar la API
 
@@ -1331,7 +1626,7 @@ Las capturas del avance de cuentas y autenticación se encuentran en:
 evidencias/actuacion6/
 ```
 
-La carpeta contiene 11 capturas numeradas del 01 al 11. Las evidencias deben corresponder a las verificaciones realmente realizadas durante esta etapa.
+La carpeta contiene las evidencias numeradas del 01 al 11. Las evidencias deben corresponder a las verificaciones realmente realizadas durante esta etapa.
 
 Entre las comprobaciones relevantes se encuentran:
 
@@ -1348,6 +1643,28 @@ Entre las comprobaciones relevantes se encuentran:
 11. Comprobaciones adicionales del módulo de autenticación y su funcionamiento.
 
 Esta lista describe el alcance de las evidencias. Cada punto debe coincidir con el contenido real de su captura; se deben conservar los nombres existentes en el repositorio y no atribuir a una imagen una comprobación que no muestre.
+
+### Evidencias de la Semana 9 — JWT
+
+Las capturas de autenticación y protección de rutas se encuentran en:
+
+```text
+evidencias/actuacion7/
+```
+
+Las evidencias documentan:
+
+- Inicio de sesión y emisión del token JWT.
+- Verificación de los datos incluidos en el payload.
+- Validación de las variables de entorno para JWT.
+- Rechazo de credenciales incorrectas.
+- Validación de `GET /auth/me` con token válido, sin token y con token alterado.
+- Protección de `POST /enrollments`.
+- Comprobación de que una solicitud no autenticada no inserta una matrícula.
+- Validación de datos inválidos en el DTO de matrículas.
+- Rechazo de una matrícula duplicada.
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos. No se deben publicar tokens reales en el README, en Git ni en documentación compartida.
 
 ### Pruebas funcionales
 
@@ -1385,8 +1702,16 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - Comprobación de la unicidad del correo en PostgreSQL.
 - Verificación de que el hash bcrypt no se expone en las respuestas.
 - Comprobación de la persistencia de las cuentas en PostgreSQL.
+- Emisión y validación de tokens JWT.
+- Validación de `GET /auth/me` con token válido.
+- Rechazo de solicitudes protegidas sin token.
+- Rechazo de tokens alterados.
+- Protección de la creación de matrículas.
+- Validación de identificadores de matrícula mediante DTOs.
+- Verificación de que una solicitud de matrícula sin autenticación no produce inserciones.
+- Rechazo de matrículas duplicadas después de autenticar al usuario.
 
-Los puntos de autenticación deben considerarse pruebas realizadas solo cuando se hayan confirmado con las solicitudes HTTP, las consultas a la base de datos o el código correspondiente.
+Los puntos deben considerarse pruebas realizadas solo cuando se hayan confirmado con las solicitudes HTTP, las consultas a la base de datos o el código correspondiente.
 
 ## Persistencia de datos
 
@@ -1414,6 +1739,8 @@ La persistencia se puede verificar reiniciando la API y consultando nuevamente l
 
 La autenticación incorpora la tabla `users`, destinada a almacenar las cuentas de acceso. La contraseña original no se almacena en texto plano. La persistencia de las cuentas se comprueba consultando PostgreSQL y verificando que los registros continúan disponibles después de reiniciar la API.
 
+Las solicitudes no autenticadas a `POST /enrollments` se rechazan antes de crear la matrícula. Esta comprobación se realizó contrastando el resultado HTTP con el recuento de registros en PostgreSQL.
+
 ## Seguridad de credenciales
 
 Las credenciales reales de PostgreSQL deben mantenerse fuera del repositorio.
@@ -1430,11 +1757,13 @@ DATABASE_PORT=5432
 DATABASE_NAME=coursehub
 DATABASE_USER=postgres
 DATABASE_PASSWORD=change_me
+JWT_SECRET=replace-with-a-long-random-local-secret
+JWT_EXPIRES_IN=15m
 ```
 
 El valor `change_me` es únicamente ilustrativo. Cada integrante debe configurar las credenciales que correspondan a su entorno local.
 
-El archivo `.gitignore` debe excluir `.env` y los archivos locales de configuración que puedan contener credenciales.
+El archivo `.gitignore` debe excluir `.env` y los archivos locales de configuración que puedan contener credenciales. `JWT_SECRET` debe ser un secreto aleatorio de al menos 32 caracteres, distinto en cada entorno y nunca versionado.
 
 Antes de publicar cambios, se puede comprobar que `.env` esté ignorado mediante:
 
@@ -1456,8 +1785,10 @@ Además:
 - Los correos se normalizan antes de registrar o buscar cuentas.
 - La base de datos mantiene la restricción de unicidad del correo.
 - No se deben incluir contraseñas reales, tokens ni otros secretos en el README, en capturas de pantalla o en los commits.
-
-La autenticación documentada corresponde al registro y al inicio de sesión. No se debe afirmar que existen tokens JWT, guards o roles hasta que estas funcionalidades estén implementadas y verificadas.
+- El JWT contiene únicamente `sub` y `email` como datos propios del payload; `iat` y `exp` se añaden para emisión y expiración.
+- La vigencia configurada del token es de 15 minutos mediante `JWT_EXPIRES_IN=15m`.
+- Las rutas protegidas validan el JWT mediante `JwtAuthGuard`.
+- La autorización mediante roles no forma parte del alcance actual.
 
 ## Comandos disponibles
 
@@ -1521,6 +1852,7 @@ Los comandos disponibles dependen de los scripts declarados en `package.json`.
 - [class-transformer](https://github.com/typestack/class-transformer)
 - [Joi](https://joi.dev/)
 - [bcrypt](https://www.npmjs.com/package/bcrypt)
+- [@nestjs/jwt](https://docs.nestjs.com/security/authentication)
 
 ## Estado del proyecto
 
@@ -1551,7 +1883,16 @@ Las funcionalidades documentadas incluyen:
 - Verificación de contraseñas mediante `bcrypt.compare`.
 - Prevención de correos duplicados.
 - Respuestas de autenticación sin contraseña ni hash.
-- Evidencias de las pruebas de registro, inicio de sesión y validaciones.
+- Emisión de tokens JWT con `sub` y `email` en el payload.
+- Validación de `JWT_SECRET` obligatorio mediante Joi.
+- Configuración de expiración del token mediante `JWT_EXPIRES_IN` (15 minutos).
+- Validación de tokens mediante `JwtAuthGuard`.
+- Consulta del usuario autenticado mediante `GET /auth/me`.
+- Protección de `POST /enrollments`.
+- Rechazo de solicitudes protegidas sin token válido.
+- Validación de datos mediante DTOs en la creación de matrículas.
+- Pruebas de inicio de sesión, payload, ausencia de secreto y cambio de secreto.
+- Evidencias de las pruebas de registro, inicio de sesión, validaciones y protección de rutas.
 
 En la Semana 6 se amplió `GET /students` para incorporar búsqueda textual, filtros combinables, paginación, ordenamiento controlado y validación de parámetros.
 
@@ -1574,7 +1915,26 @@ Los códigos HTTP previstos son `201 Created` para el registro, `200 OK` para el
 
 Las evidencias de esta etapa se organizan en `evidencias/actuacion6/`.
 
-El alcance actual no incluye la emisión y validación de JWT, los guards de autenticación ni los roles de autorización. Estas funcionalidades deberán documentarse cuando estén implementadas y verificadas.
+### Avance de la Semana 9 — Etapa 3
+
+En la Semana 9 se amplió el módulo de autenticación para emitir y validar tokens JWT y proteger rutas que requieren un usuario autenticado.
+
+Las funcionalidades incorporadas incluyen:
+
+- Emisión de JWT después de iniciar sesión correctamente.
+- Validación de `JWT_SECRET` al iniciar la aplicación.
+- Configuración de la expiración del token mediante `JWT_EXPIRES_IN`.
+- Implementación de `JwtAuthGuard`.
+- Endpoint `GET /auth/me` protegido por JWT.
+- Protección de `POST /enrollments`.
+- Rechazo de solicitudes protegidas sin token válido.
+- Validación de los identificadores de matrícula.
+- Conservación de las reglas de negocio que impiden matrículas duplicadas.
+- Verificación en PostgreSQL de que una solicitud no autenticada no inserta una matrícula.
+
+Las evidencias de JWT y protección de rutas se guardan en `evidencias/actuacion7/`.
+
+La autorización por roles no se incluye en este avance, ya que no forma parte de las funcionalidades implementadas y verificadas.
 
 Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
 
