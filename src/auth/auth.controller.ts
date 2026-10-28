@@ -1,10 +1,15 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import type { AuthenticatedRequest } from './guards/jwt-auth.guard.js';
+import type { AuthenticatedUser } from './types/jwt-payload.type.js';
 import { UsersService } from '../users/users.service.js';
+
+interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -35,20 +40,21 @@ export class AuthController {
 
   /**
    * GET /auth/me
-   * Requiere un JWT válido en el encabezado Authorization.
+   * Requiere un JWT válido en Authorization: Bearer.
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@Req() request: AuthenticatedRequest) {
-    // El guard verifica el token y coloca su payload en request.user.
-    const user = await this.usersService.findById(request.user.sub);
+    const authenticatedUser = request.user;
 
-    // Comprueba que la cuenta siga existiendo y coincida con el token.
-    if (!user || user.email !== request.user.email) {
+    const user = await this.usersService.findById(
+      authenticatedUser.id,
+    );
+
+    if (!user || user.email !== authenticatedUser.email) {
       throw new UnauthorizedException('Usuario no válido');
     }
 
-    // Devolver únicamente los campos públicos.
     return {
       id: user.id,
       email: user.email,

@@ -1,55 +1,34 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 
-export interface AuthenticatedUser {
-  sub: number;
-  email: string;
-  iat?: number;
-  exp?: number;
-}
-
-export interface AuthenticatedRequest extends Request {
-  user: AuthenticatedUser;
-}
-
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
-
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context
-      .switchToHttp()
-      .getRequest<AuthenticatedRequest>();
-
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  handleRequest<TUser = any>(
+    err: any,
+    user: TUser,
+    info: any,
+    context: ExecutionContext,
+  ): TUser {
+    const request = context.switchToHttp().getRequest<Request>();
     const authorization = request.headers.authorization;
 
-    if (!authorization || !authorization.startsWith('Bearer ')) {
+    if (
+      !authorization ||
+      !authorization.startsWith('Bearer ') ||
+      !authorization.slice('Bearer '.length).trim()
+    ) {
       throw new UnauthorizedException('Token de acceso requerido');
     }
 
-    const token = authorization.slice('Bearer '.length).trim();
-
-    if (!token) {
-      throw new UnauthorizedException('Token de acceso requerido');
-    }
-
-    try {
-      const payload =
-        await this.jwtService.verifyAsync<AuthenticatedUser>(token);
-
-      if (
-        !Number.isInteger(payload.sub) ||
-        payload.sub <= 0 ||
-        typeof payload.email !== 'string'
-      ) {
-        throw new UnauthorizedException('Token inválido');
+    if (err || !user) {
+      if (info?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token expirado');
       }
 
-      request.user = payload;
-      return true;
-    } catch {
       throw new UnauthorizedException('Token inválido o expirado');
     }
+
+    return user;
   }
 }
