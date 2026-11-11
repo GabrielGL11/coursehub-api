@@ -1260,7 +1260,7 @@ Las siguientes comprobaciones no cuentan con una captura específica en `evidenc
 - Intento de eliminación de un curso por un docente o por un estudiante (`403 Forbidden`).
 - Modificación por parte de un administrador de un curso creado por otro usuario.
 
-Estas tres comprobaciones se repiten con captura en `evidencias/actuacion11/` (pruebas E01 a E06 de la Sesión 20).
+Las comprobaciones de solicitudes sin token, rechazo de estudiantes, modificación de cursos por docentes y autorización de administradores se vuelven a demostrar con capturas en `evidencias/actuacion11/` (pruebas E01 a E06 de la Sesión 20). La prueba de eliminación comprueba el rechazo de un docente (`403 Forbidden`) y el acceso del administrador a la ruta (`404 Not Found` para un curso inexistente). No se incluye una prueba específica de eliminación por parte de un estudiante.
 
 ### 11. Evidencias de la Semana 10
 
@@ -1279,7 +1279,7 @@ evidencias/actuacion10/
 | `04. Login como docente.png` | Inicio de sesión con la cuenta docente |
 | `05. Creación de curso como docente.png` | Creación de un curso con `createdByUserId` |
 | `06. Login como estudiante.png` | Inicio de sesión con la cuenta de estudiante |
-| `06. Estudiante sin permiso para crear cursos.png` | Rechazo de la creación de un curso por un estudiante |
+| `06. Estudiante sin permiso para crear curso.png` | Rechazo de la creación de un curso por un estudiante |
 | `07. Docente modifica su propio curso.png` | Modificación de un curso propio por el docente |
 | `08. Docente no puede modificar curso ajeno.png` | Rechazo de la modificación de un curso de otro usuario |
 | `09. Cambiar rol.png` | Cambio de rol de una cuenta de práctica |
