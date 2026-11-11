@@ -1,10 +1,19 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm'; // 1
-@Entity('courses') // 2
-export class Course { // 3
-    @PrimaryGeneratedColumn() // 4
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity('courses')
+export class Course {
+    @PrimaryGeneratedColumn()
     id: number;
-    @Column() // 5
+
+    @Column()
     title: string;
-    @Column() // 6
+
+    @Column()
     level: string;
+
+    @Column({
+        type: 'integer',
+        nullable: true,
+    })
+    createdByUserId: number | null;
 }

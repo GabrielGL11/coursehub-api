@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -20,6 +20,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Semana 7: configuración y variables de entorno](#semana-7-configuración-y-variables-de-entorno)
 - [Semana 8: usuarios y autenticación inicial](#semana-8-usuarios-y-autenticación-inicial)
 - [Semana 9: autenticación con JWT](#semana-9-autenticación-con-jwt)
+- [Semana 10: roles, permisos y propiedad de recursos (Sesión 19)](#semana-10-roles-permisos-y-propiedad-de-recursos-sesión-19)
+- [Semana 10: controles de seguridad para una API pública (Sesión 20)](#semana-10-controles-de-seguridad-para-una-api-pública-sesión-20)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -51,6 +53,9 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **bcrypt:** hash y verificación de contraseñas.
 - **@nestjs/jwt:** firma y emisión de tokens JWT.
 - **@nestjs/passport, passport y passport-jwt:** extracción del token Bearer, verificación de firma y vencimiento, y protección de rutas mediante `AuthGuard('jwt')`.
+- **Guards, `Reflector` y `SetMetadata` de NestJS:** autorización por roles mediante `RolesGuard` y el decorador `@Roles()`.
+- **@nestjs/throttler:** limitación de la tasa de solicitudes (rate limiting) mediante `ThrottlerModule` y `ThrottlerGuard`.
+- **CORS de NestJS (`app.enableCors`):** restricción de los orígenes web que pueden leer las respuestas de la API desde un navegador.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
@@ -85,6 +90,14 @@ Las principales funcionalidades incluyen:
 - Consulta de los datos públicos del usuario autenticado.
 - Protección de todas las rutas de matrículas mediante autenticación JWT.
 - Registro y inicio de sesión como rutas públicas; respuestas `401 Unauthorized` ante tokens ausentes, alterados o expirados.
+- Roles de usuario (`admin`, `teacher` y `student`), con `student` como rol predeterminado.
+- Inclusión del rol en el payload del JWT.
+- Autorización por rol mediante el decorador `@Roles()` y `RolesGuard`.
+- Control de propiedad de los cursos mediante `createdByUserId`.
+- Respuestas `403 Forbidden` cuando la identidad es válida pero no tiene permiso.
+- CORS configurado con un origen explícito (`http://localhost:5173` en desarrollo).
+- Limitación de solicitudes: 20 por minuto de forma global y 5 por minuto en `POST /auth/login`, con respuesta `429 Too Many Requests`.
+- Requisito documentado de HTTPS/TLS y de gestión de secretos fuera del repositorio para producción.
 
 ## Arquitectura
 
@@ -120,7 +133,7 @@ JwtAuthGuard
        |
        ├── JwtStrategy extrae el token Bearer
        ├── Verifica la firma y la expiración
-       ├── validate(payload) deja { id, email } en req.user
+       ├── validate(payload) deja la identidad del usuario en req.user
        |
        v
 EnrollmentsController
@@ -144,6 +157,34 @@ El guard valida la autenticación antes de permitir el acceso al controlador; si
 
 En el registro de usuarios, el flujo incluye la validación de los datos, la comprobación del correo electrónico, el hash de la contraseña y la persistencia del nuevo usuario. En el inicio de sesión, se recupera expresamente el hash y se compara con la contraseña recibida mediante bcrypt. Si las credenciales son correctas, se emite un token JWT firmado.
 
+### Flujo de una operación con autorización por rol
+
+Desde la Semana 10, las rutas de escritura de cursos añaden una capa de autorización. Por ejemplo, al eliminar un curso:
+
+```text
+DELETE /courses/:id
+       |
+       v
+JwtAuthGuard ──── sin token válido ──> 401 Unauthorized
+       |
+       v
+RolesGuard ────── rol no permitido ──> 403 Forbidden
+       |
+       v
+CoursesController
+       |
+       v
+CoursesService (reglas de propiedad cuando corresponden)
+       |
+       v
+TypeORM Repository
+       |
+       v
+PostgreSQL
+```
+
+El orden es relevante: primero la identidad (`JwtAuthGuard`) y después el permiso (`RolesGuard`). Las reglas que dependen del recurso concreto, como la propiedad de un curso, se comprueban en el servicio.
+
 ## Estructura del proyecto
 
 La siguiente estructura resume los módulos principales. Es orientativa y debe mantenerse sincronizada con los archivos que existan realmente en el repositorio.
@@ -151,11 +192,14 @@ La siguiente estructura resume los módulos principales. Es orientativa y debe m
 ```text
 src/
 ├── auth/
+│   ├── decorators/
+│   │   └── roles.decorator.ts
 │   ├── dto/
 │   │   ├── register.dto.ts
 │   │   └── login.dto.ts
 │   ├── guards/
-│   │   └── jwt-auth.guard.ts
+│   │   ├── jwt-auth.guard.ts
+│   │   └── roles.guard.ts
 │   ├── strategies/
 │   │   └── jwt.strategy.ts
 │   ├── types/
@@ -169,6 +213,7 @@ src/
 ├── users/
 │   ├── entities/
 │   │   └── user.entity.ts
+│   ├── user-role.enum.ts
 │   ├── users.module.ts
 │   ├── users.service.ts
 │   └── users.service.spec.ts
@@ -207,7 +252,9 @@ evidencias/
 ├── actuacion6/
 ├── actuacion7/
 ├── actuacion8/
-└── actuacion9/
+├── actuacion9/
+├── actuacion10/
+└── actuacion11/
 
 .env
 .env.example
@@ -216,7 +263,7 @@ package.json
 README.md
 ```
 
-La estructura es orientativa; se deben conservar los nombres y archivos que existan realmente en el repositorio.
+La estructura es orientativa; se deben conservar los nombres y archivos que existan realmente en el repositorio. Las ubicaciones de `roles.decorator.ts`, `roles.guard.ts` y `user-role.enum.ts` deben confirmarse contra el repositorio.
 
 ## Instalación y configuración
 
@@ -414,7 +461,7 @@ Archivos principales:
 - `src/users/users.module.ts`
 - `src/users/users.service.ts`
 
-La entidad `User` contiene los siguientes campos:
+La entidad `User` contiene los siguientes campos (el campo `role` se incorporó posteriormente, en la Semana 10):
 
 | Campo | Descripción |
 |---|---|
@@ -564,7 +611,7 @@ Los códigos y mensajes definitivos deben coincidir con las respuestas reales ob
 
 ### 8. Verificación en PostgreSQL
 
-La tabla `users` almacena el identificador, el correo, el hash de la contraseña y la fecha de creación.
+La tabla `users` almacena el identificador, el correo, el hash de la contraseña y la fecha de creación (y, desde la Semana 10, el rol).
 
 Para consultar los usuarios sin mostrar información sensible:
 
@@ -643,6 +690,8 @@ Período de trabajo: Semana 9 (26 de octubre al 1 de noviembre de 2026), avance 
 Durante la Semana 9 se amplió la autenticación de CourseHub API para emitir tokens JWT después de verificar correctamente las credenciales, validar los tokens recibidos en las solicitudes HTTP y proteger determinadas rutas mediante un guard de autenticación.
 
 La implementación combina dos piezas complementarias: `@nestjs/jwt` firma los tokens al iniciar sesión, y `@nestjs/passport` con `passport-jwt` los extrae y verifica en cada solicitud protegida. La configuración se centraliza mediante `ConfigService`.
+
+> **Nota:** esta sección describe el estado de la Semana 9. Desde la Semana 10 el payload del JWT incluye además el rol del usuario (véase [Semana 10](#semana-10-roles-permisos-y-propiedad-de-recursos-sesión-19)).
 
 ### 1. Variables de entorno
 
@@ -853,7 +902,7 @@ Las pruebas realizadas comprobaron que una solicitud sin token recibe `401 Unaut
 
 También se comprobó que una solicitud autenticada con un `studentId` negativo recibe `400 Bad Request` y que intentar crear una matrícula duplicada recibe `409 Conflict`. Esto muestra que autenticación y validación son capas distintas.
 
-Los endpoints de estudiantes y cursos no se modificaron en esta semana y siguen sin exigir autenticación (véase [Rutas públicas y protegidas](#11-rutas-públicas-y-protegidas)).
+Los endpoints de estudiantes y cursos no se modificaron en la Semana 9 y seguían sin exigir autenticación. Las rutas de escritura de cursos se protegieron posteriormente, en la Semana 10 (véase [Rutas públicas y protegidas](#11-rutas-públicas-y-protegidas)).
 
 ### 7. Pruebas realizadas
 
@@ -973,11 +1022,13 @@ Esta etapa incorpora:
 - Conservación de las reglas de negocio de las matrículas.
 - Comprobación de que las solicitudes no autenticadas no crean matrículas.
 
-**Fuera del alcance de la semana:** roles y permisos, respuestas `403 Forbidden`, decoradores personalizados como `@CurrentUser()`, refresh tokens, cierre de sesión con lista de revocación, recuperación de cuenta y OAuth. Una identidad ausente o inválida produce `401`; una identidad válida sin el permiso requerido produciría `403`, escenario que se implementará en la Semana 10.
+**Fuera del alcance de la semana:** roles y permisos, respuestas `403 Forbidden`, decoradores personalizados como `@CurrentUser()`, refresh tokens, cierre de sesión con lista de revocación, recuperación de cuenta y OAuth. Una identidad ausente o inválida produce `401`; una identidad válida sin el permiso requerido produce `403`, escenario que se implementó en la Semana 10.
 
 Con JWT, cualquier usuario autenticado puede usar las rutas protegidas. Tener un token válido prueba la identidad, no el permiso para realizar cualquier operación.
 
 ### 11. Rutas públicas y protegidas
+
+Estado vigente de las rutas (actualizado en la Semana 10):
 
 | Ruta | Acceso |
 |---|---|
@@ -987,8 +1038,11 @@ Con JWT, cualquier usuario autenticado puede usar las rutas protegidas. Tener un
 | `POST /enrollments`, `GET /enrollments`, `DELETE /enrollments/:id` | Requiere JWT |
 | `GET /students/:studentId/enrollments` | Requiere JWT |
 | `GET /courses/:courseId/enrollments` | Requiere JWT |
-| `/students` y `/students/:id` (consulta, creación, actualización y eliminación) | Pública en esta etapa |
-| `/courses` y `/courses/:id` (consulta, creación, actualización y eliminación) | Pública en esta etapa |
+| `/students` y `/students/:id` (consulta, creación, actualización y eliminación) | Pública |
+| `GET /courses` y `GET /courses/:id` | Consulta sin restricción por rol |
+| `POST /courses` | Requiere JWT; rol `teacher` o `admin` |
+| `PATCH /courses/:id` | Requiere JWT; `admin` o `teacher` propietario del curso |
+| `DELETE /courses/:id` | Requiere JWT; solo `admin` |
 | `GET /` y `GET /welcome` | Pública |
 
 Registro y login permanecen públicos; de otro modo no sería posible obtener una cuenta ni un token. El guard se aplica de forma explícita con `@UseGuards`, no de manera global.
@@ -996,7 +1050,7 @@ Registro y login permanecen públicos; de otro modo no sería posible obtener un
 **Justificaciones:**
 
 - Las matrículas relacionan estudiantes con cursos y modifican el estado académico, por lo que se decidió exigir autenticación en todo su controlador.
-- Los módulos de estudiantes y cursos se mantienen sin cambios en esta semana para no alterar los contratos de las etapas anteriores. Proteger sus rutas de escritura queda como decisión del equipo y no depende de roles.
+- En la Semana 9 los módulos de estudiantes y cursos se mantuvieron sin cambios para no alterar los contratos de las etapas anteriores. En la Semana 10 se protegieron las rutas de escritura de cursos mediante roles y propiedad; el módulo de estudiantes continúa sin exigir autenticación.
 
 ### 12. Demostración reproducible
 
@@ -1037,6 +1091,407 @@ git status
 
 Los archivos `auth.service.spec.ts` y `auth.controller.spec.ts` contienen actualmente pruebas básicas de existencia generadas por la plantilla de NestJS. Como extensión opcional se proponen pruebas del servicio de autenticación: una de inicio de sesión correcto que confirme `accessToken`, y otra de contraseña incorrecta que espere `UnauthorizedException`. Estas pruebas deben usar un secreto ficticio controlado por el entorno de pruebas, nunca el secreto local de desarrollo.
 
+## Semana 10: roles, permisos y propiedad de recursos (Sesión 19)
+
+Período de trabajo: Semana 10 (2 al 8 de noviembre de 2026), Sesión 19.
+
+**Resultado de aprendizaje:** autorizar acciones mediante roles y comprobar que una persona solo modifica los recursos sobre los que tiene permiso.
+
+En la Semana 9 la API pasó a estar autenticada: un JWT válido prueba que la solicitud tiene una identidad. Sin embargo, no demuestra que esa identidad pueda eliminar un curso o modificar un recurso ajeno. En la Sesión 19 se añade la **autorización**: qué puede hacer cada identidad autenticada.
+
+### 1. Autenticación y autorización
+
+| Respuesta | Significado | Ejemplo |
+|---|---|---|
+| `401 Unauthorized` | No existe una identidad válida | Falta el token o su firma no es válida |
+| `403 Forbidden` | La identidad existe, pero no tiene permiso | Un estudiante intenta crear o eliminar un curso |
+
+### 2. Rol, permiso y propiedad
+
+- **Rol:** agrupa responsabilidades generales (`admin`, `teacher` o `student`).
+- **Permiso:** acción concreta sobre un recurso, como crear, actualizar o eliminar un curso.
+- **Propiedad:** indica si el recurso pertenece a la identidad actual. Un docente puede tener permiso para editar cursos, pero solo los que creó.
+
+El rol se evalúa en el guard. La propiedad se evalúa en el servicio, porque `RolesGuard` no puede saber quién creó un curso si no consulta ese curso.
+
+### 3. Roles del sistema
+
+| Rol | Valor almacenado | Descripción |
+|---|---|---|
+| `ADMIN` | `admin` | Administrador del sistema |
+| `TEACHER` | `teacher` | Docente |
+| `STUDENT` | `student` | Estudiante; rol predeterminado |
+
+Los roles se modelan como una enumeración cerrada (`UserRole`), lo que evita valores ambiguos como `administrator`, `Admin` y `admin`. La entidad `User` incorpora el campo `role` con valor predeterminado `student`, el de menor privilegio: una cuenta nueva no recibe permisos de docente o administrador por accidente.
+
+Los roles de práctica se asignaron de forma controlada en la base de datos local (véanse las evidencias `01`, `09` y `11`).
+
+### 4. JWT con rol
+
+La generación del token se actualizó para incluir el identificador del usuario, su correo y su rol:
+
+```json
+{
+  "sub": 2,
+  "email": "prueba.semana8@example.com",
+  "role": "teacher",
+  "iat": 1793045712,
+  "exp": 1793046612
+}
+```
+
+Los valores son ilustrativos. Con estos datos el sistema identifica al usuario autenticado y determina sus permisos. Se comprobó que el token emitido al iniciar sesión con la cuenta docente contiene `role: teacher`.
+
+El token sigue sin contener contraseñas, `passwordHash` ni secretos.
+
+### 5. Decorador `@Roles()` y `RolesGuard`
+
+**`@Roles(...roles)`** es un decorador personalizado que guarda, mediante `SetMetadata`, los roles autorizados para una ruta. Por sí solo no concede ni deniega nada: deja escrita la política junto a la ruta.
+
+**`RolesGuard`** lee esos metadatos con `Reflector` y compara el rol del usuario autenticado (`req.user`) con los roles permitidos. Si no cumple, la solicitud termina con `403 Forbidden`. Si la ruta no declara `@Roles()`, el guard no restringe por rol.
+
+El guard supone que `JwtAuthGuard` ya verificó el token y dejó la identidad en `req.user`; por eso el orden es primero identidad y después permiso:
+
+```typescript
+@Delete(':id')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
+remove(@Param('id', ParseIntPipe) id: number) {
+  return this.coursesService.remove(id);
+}
+```
+
+Con esta política, un token ausente obtiene `401`, un token de estudiante válido obtiene `403` y un token de administrador válido continúa hacia el servicio.
+
+### 6. Relación entre cursos y usuarios
+
+La entidad `Course` incorpora el campo `createdByUserId`, que identifica al usuario que creó el curso. Su valor se obtiene del usuario autenticado y no de un identificador enviado en el cuerpo de la solicitud: si el cliente pudiera enviar el propietario, cualquier usuario podría atribuirse la propiedad de un curso ajeno.
+
+### 7. Reglas de autorización de cursos
+
+| Rol | Crear | Modificar | Eliminar |
+|---|---|---|---|
+| `student` | No | No | No |
+| `teacher` | Sí | Solo sus propios cursos | No |
+| `admin` | Sí | Cualquier curso, sin restricción de propiedad | Sí |
+
+La eliminación de cursos está reservada para los administradores. Las restricciones de propiedad se aplican en `CoursesService` y los guards y decoradores en `CoursesController`. Un docente que intenta modificar un curso que creó otro usuario recibe `403 Forbidden`.
+
+Ejemplo de la comprobación de propiedad en el servicio:
+
+```typescript
+const canManageAny = actor.role === UserRole.ADMIN;
+const isOwner = course.createdByUserId === actor.id;
+
+if (!canManageAny && !isOwner) {
+  throw new ForbiddenException('You cannot modify this course');
+}
+```
+
+El ejemplo muestra la lógica general de la sesión; el código definitivo está en `CoursesService`.
+
+### 8. Cambio en los módulos
+
+`CoursesModule` importa ahora `AuthModule`. Sin esa importación, Nest no podía resolver las dependencias de `JwtAuthGuard` en el controlador de cursos y la aplicación no iniciaba. Tras la corrección, el servidor inicia correctamente.
+
+### 9. Pruebas realizadas
+
+Las pruebas se realizaron con Thunder Client y pgAdmin. Las evidencias están en `evidencias/actuacion10/`.
+
+| Prueba | Resultado documentado | Evidencia |
+|---|---|---|
+| Usuarios y roles en PostgreSQL, antes y después de asignar los roles de práctica | Se comprobaron los roles de las cuentas de prueba | `01` |
+| Compilación con `npm run build` | Compilación correcta | `02` |
+| Inicio del servidor | Servidor iniciado correctamente | `03` |
+| Inicio de sesión como docente | `200 OK`; el JWT contiene `role: teacher` | `04` |
+| Creación de un curso como docente | Curso creado con `createdByUserId` del docente | `05` |
+| Inicio de sesión como estudiante y creación de un curso | Rechazo por falta de permiso (`403 Forbidden`) | `06` |
+| Docente modifica su propio curso | Modificación permitida | `07` |
+| Docente intenta modificar un curso de otro usuario | Rechazo (`403 Forbidden`) | `08` |
+| Administrador elimina un curso temporal | Eliminación permitida (se cambió el rol de una cuenta a `admin` y se verificó en la base de datos) | `09` |
+| Consultas `GET /courses` con paginación (página 1 y 2) y límites inferior y superior | Las consultas continúan funcionando | `10` |
+| Cambio de rol de una cuenta de práctica y restauración del rol original | Roles de práctica restaurados al finalizar las pruebas | `11` |
+
+Respuesta obtenida al crear un curso con la cuenta docente:
+
+```json
+{
+  "id": 6,
+  "title": "Curso de prueba docente",
+  "level": "beginner",
+  "createdByUserId": 2
+}
+```
+
+Respuesta obtenida en la página 2 de `GET /courses?page=2&limit=5&sortBy=id&order=ASC` (`200 OK`):
+
+```json
+{
+  "items": [
+    {
+      "id": 6,
+      "title": "Curso de prueba docente",
+      "level": "beginner",
+      "createdByUserId": 2
+    },
+    {
+      "id": 7,
+      "title": "Frontend diseños UI/UX & Usabilidad",
+      "level": "intermediate",
+      "createdByUserId": 2
+    }
+  ],
+  "meta": {
+    "total": 7,
+    "page": 2,
+    "limit": 5,
+    "totalPages": 2
+  }
+}
+```
+
+Los cursos con `createdByUserId` muestran que la propiedad queda asociada al usuario que los creó. Los valores dependen de los datos almacenados en la base local.
+
+### 10. Pruebas sin evidencia propia
+
+Las siguientes comprobaciones no cuentan con una captura específica en `evidencias/actuacion10/` y no se documentan como completadas:
+
+- Solicitudes sin token a las rutas protegidas de cursos (`401 Unauthorized`).
+- Intento de eliminación de un curso por un docente o por un estudiante (`403 Forbidden`).
+- Modificación por parte de un administrador de un curso creado por otro usuario.
+
+Estas tres comprobaciones se repiten con captura en `evidencias/actuacion11/` (pruebas E01 a E06 de la Sesión 20).
+
+### 11. Evidencias de la Semana 10
+
+Las capturas se guardan en:
+
+```text
+evidencias/actuacion10/
+```
+
+| Archivo | Comprobación |
+|---|---|
+| `01. Usuarios y roles originales.png` | Usuarios y roles antes de los cambios de práctica |
+| `01. Usuarios y roles cambiados.png` | Usuarios y roles después de asignar los roles de práctica |
+| `02. Compilación del proyecto.png` | Compilación correcta del proyecto |
+| `03. Servidor iniciado correctamente.png` | Inicio correcto del servidor |
+| `04. Login como docente.png` | Inicio de sesión con la cuenta docente |
+| `05. Creación de curso como docente.png` | Creación de un curso con `createdByUserId` |
+| `06. Login como estudiante.png` | Inicio de sesión con la cuenta de estudiante |
+| `06. Estudiante sin permiso para crear cursos.png` | Rechazo de la creación de un curso por un estudiante |
+| `07. Docente modifica su propio curso.png` | Modificación de un curso propio por el docente |
+| `08. Docente no puede modificar curso ajeno.png` | Rechazo de la modificación de un curso de otro usuario |
+| `09. Cambiar rol.png` | Cambio de rol de una cuenta de práctica |
+| `09. Verificar rol.png` | Verificación del rol en la base de datos |
+| `09. Crear curso temporal.png` | Creación de un curso temporal para la prueba de eliminación |
+| `09. Administrador elimina un curso.png` | Eliminación de un curso por un administrador |
+| `10. Consulta GET de cursos inferior.png` | Consulta `GET /courses` con límite inferior |
+| `10. Consulta GET de cursos superior.png` | Consulta `GET /courses` con límite superior |
+| `10. Paginación de cursos página 1.png` | Primera página de `GET /courses` |
+| `10. Paginación de cursos página 2.png` | Segunda página de `GET /courses` |
+| `11. Cambiar rol.png` | Cambio de rol de una cuenta de práctica al finalizar las pruebas |
+| `11. Regresar rol.png` | Restauración del rol original de la cuenta |
+| `12. Crear primera cuenta.png` | Registro de una cuenta de práctica |
+| `12. Crear segunda cuenta.png` | Registro de una segunda cuenta de práctica |
+| `13. Cambiar roles.png` | Asignación de los roles de práctica a las cuentas nuevas |
+| `13. Verificar roles.png` | Verificación de los roles en la base de datos |
+
+Los nombres deben coincidir con los archivos realmente guardados; si alguno difiere, debe corregirse en esta tabla. Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### 12. Archivos relacionados con la implementación
+
+- `src/users/user-role.enum.ts`: enumeración `UserRole`.
+- `src/users/entities/user.entity.ts`: campo `role` con valor predeterminado `student`.
+- `src/auth/auth.service.ts`: inclusión del rol en el JWT.
+- `src/auth/decorators/roles.decorator.ts`: decorador `@Roles()`.
+- `src/auth/guards/roles.guard.ts`: `RolesGuard`.
+- `src/courses/entities/course.entity.ts`: campo `createdByUserId`.
+- `src/courses/courses.service.ts`: reglas de propiedad y permisos.
+- `src/courses/courses.controller.ts`: guards y decoradores en las rutas.
+- `src/courses/courses.module.ts`: importación de `AuthModule`.
+
+Las rutas deben mantenerse sincronizadas con los archivos que existan realmente en el repositorio.
+
+### 13. Alcance de la Semana 10
+
+Esta etapa incorpora:
+
+- Roles `admin`, `teacher` y `student`.
+- Rol predeterminado de menor privilegio (`student`).
+- Rol incluido en el JWT.
+- Decorador `@Roles()` y `RolesGuard`.
+- Propiedad de los cursos mediante `createdByUserId`.
+- Restricciones de creación, modificación y eliminación de cursos según el rol y la propiedad.
+- Respuestas `403 Forbidden` para identidades sin permiso.
+
+**Fuera del alcance de la Sesión 19:** refresh tokens, revocación de tokens, recuperación de cuenta y OAuth. Los controles de seguridad adicionales (CORS, limitación de solicitudes y HTTPS/TLS) se documentan en la [Sesión 20](#semana-10-controles-de-seguridad-para-una-api-pública-sesión-20).
+
+## Semana 10: controles de seguridad para una API pública (Sesión 20)
+
+Período de trabajo: Semana 10 (2 al 8 de noviembre de 2026), Sesión 20, Avance de la Etapa 3.
+
+**Resultado de aprendizaje:** configurar controles básicos de consumo y comprender qué protege CORS, qué limita la tasa de solicitudes y por qué HTTPS es obligatorio fuera del entorno local.
+
+Una API segura no depende de una sola barrera. JWT protege la identidad; la validación protege la entrada; la autorización protege las acciones; y los controles de esta sesión reducen los abusos desde clientes y navegadores. Este conjunto de capas se denomina **defensa en profundidad**.
+
+### 1. CORS no es autorización
+
+CORS indica qué orígenes web pueden **leer una respuesta desde un navegador**. No impide que Postman, Thunder Client, un script o un servidor externo llamen a la API. Por eso no reemplaza a JWT ni al guard de roles.
+
+Configuración en `src/main.ts`:
+
+```typescript
+app.enableCors({
+  origin: ['http://localhost:5173'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+```
+
+| Entorno | Origen permitido |
+|---|---|
+| Desarrollo | `http://localhost:5173` (cliente local) |
+| Producción | El dominio real del cliente, definido de forma explícita; no se usa `origin: '*'` |
+
+- Solo se admiten los orígenes documentados en esta tabla.
+- Se permiten únicamente los métodos `GET`, `POST`, `PATCH` y `DELETE`.
+- Solo se aceptan los encabezados `Content-Type` y `Authorization`.
+- `origin: '*'` no es una decisión apropiada cuando la API usa credenciales o cuando se conoce el cliente autorizado.
+
+**Qué comprueba el navegador:** si el origen de la página no aparece en `Access-Control-Allow-Origin`, el navegador bloquea el acceso de ese sitio a la respuesta. La petición puede llegar igualmente al servidor; lo que se impide es que el origen no autorizado lea el resultado.
+
+### 2. Limitación de solicitudes (rate limiting)
+
+Se utiliza `@nestjs/throttler`. Una limitación de tasa reduce las solicitudes repetidas dentro de una ventana de tiempo. No elimina todos los ataques, pero hace más costoso probar miles de contraseñas o saturar una ruta pública.
+
+Límite global en `src/app.module.ts`, aplicado con `ThrottlerGuard` como `APP_GUARD`:
+
+```typescript
+ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]);
+```
+
+Límite más estricto para el inicio de sesión en `src/auth/auth.controller.ts`:
+
+```typescript
+@Throttle({ default: { limit: 5, ttl: 60_000 } })
+@Post('login')
+```
+
+| Ámbito | Límite | Ventana |
+|---|---|---|
+| Todas las rutas | 20 solicitudes | 60 segundos |
+| `POST /auth/login` | 5 solicitudes | 60 segundos |
+
+El límite de `POST /auth/login` es más estricto porque la ruta recibe credenciales. La sexta solicitud dentro de la misma ventana responde `429 Too Many Requests`. Esa respuesta indica que el cliente debe esperar; **no revela** si el correo o la contraseña eran correctos.
+
+### 3. HTTPS y TLS (requisito de producción)
+
+> **Requisito:** en producción, CourseHub API debe publicarse únicamente mediante **HTTPS**.
+
+HTTPS usa TLS para cifrar el tráfico entre el cliente y el servidor. Sin HTTPS, un token Bearer puede ser interceptado en una red no confiable, aunque su firma sea correcta.
+
+- Durante el desarrollo local se utiliza `http://localhost`; no se configura un certificado para esa dirección.
+- En producción, la terminación TLS suele hacerse en un proxy inverso, un balanceador o la plataforma de despliegue.
+- Las solicitudes HTTP deben redirigirse a HTTPS o rechazarse.
+- La API documenta este requisito y no asume que el cliente lo resolverá.
+- Un JWT de vida corta (`JWT_EXPIRES_IN=15m`) complementa a TLS, pero no lo sustituye.
+
+### 4. Gestión de secretos y variables de entorno
+
+- `JWT_SECRET` se almacena únicamente en variables de entorno (mínimo 32 caracteres, aleatorio y distinto en cada entorno).
+- Las credenciales de PostgreSQL (`DATABASE_USER`, `DATABASE_PASSWORD`, etc.) se almacenan en `.env`, nunca en el código.
+- `.env` está excluido del repositorio mediante `.gitignore` y no se sube a GitHub.
+- Se versiona `.env.example`, que contiene únicamente valores de ejemplo y ninguna contraseña real.
+- No se publican tokens ni secretos en el README, en capturas de pantalla o en los commits.
+- Si un secreto se expone, se debe cambiar de inmediato; los tokens firmados con el anterior dejan de ser válidos.
+
+### 5. Matriz de capas
+
+| Riesgo | Control principal | Control complementario |
+|---|---|---|
+| Cuerpo malformado | DTO y `ValidationPipe` | Límite de tamaño de petición |
+| Token robado en tránsito | HTTPS/TLS | Vencimiento corto de JWT |
+| Fuerza bruta de login | Rate limit | Mensaje genérico y hash bcrypt |
+| Acción sin permiso | Roles y propiedad | Registro de auditoría |
+| Sitio web no autorizado | CORS | JWT y autorización en el servidor |
+
+### 6. Pruebas y evidencias de la Sesión 20
+
+Las pruebas se realizaron con Thunder Client, el navegador, VS Code y pgAdmin. Las capturas se guardan en:
+
+```text
+evidencias/actuacion11/
+```
+
+Cuerpo utilizado en las cinco solicitudes de `PATCH /courses/6`:
+
+```json
+{ "title": "Prueba de autorización" }
+```
+
+| Código | Prueba | Resultado esperado | Archivo en `evidencias/actuacion11/` |
+|---|---|---|---|
+| E01 | `PATCH /courses/6` sin token | `401 Unauthorized`: no existe una identidad válida | `2. Token de acceso requerido.png` |
+| E02 | `PATCH /courses/6` con estudiante (Ana, ID 1) | `403 Forbidden`: el rol `student` no puede modificar cursos | `2. Token estudiante sin permiso.png` |
+| E03 | `PATCH /courses/6` con docente no propietario (ID 4) | `403 Forbidden`: tiene el rol, pero no es el propietario | `2. Token segundo maestro sin permiso.png` |
+| E04 | `PATCH /courses/6` con docente propietario (ID 2) | `200 OK`: rol permitido y propietario del curso | `2. Token primer maestro acceso permitido.png` |
+| E05 | `PATCH /courses/6` con administrador (ID 3) | `200 OK`: el administrador gestiona cualquier curso | `2. Token admin acceso permitido.png` |
+| E06 | `DELETE /courses/999999` con docente y con administrador | Docente `403`; administrador supera los guards y recibe `404` (no se borra nada) | `3. Sin permiso para eliminar curso.png` y `3. No se puede eliminar un curso que no existe.png` |
+| E07 | CORS con origen permitido (`Origin: http://localhost:5173`) y no permitido (`http://localhost:5174`) | Solo el origen permitido recibe `Access-Control-Allow-Origin` | `4. CORS origen permitido.png` y `4. CORS origen no permitido.png` |
+| E08 | CORS desde el navegador: origen `5174` (bloqueado) y origen `5173` (permitido) | El navegador bloquea la lectura desde `5174` y la permite desde `5173` | `6. CORS origen bloqueado.png` y `6. CORS origen permitido navegador.png` (apoyo: `6. Servidor corriendo por el puerto 5174.png`, `6. Servidor corriendo por el puerto 5173.png` y `6. Se crea un frontend.png`) |
+| E09 | Rate limit: quinto intento de `POST /auth/login` | `200 OK` | `7. Rate limit quinto intento 200.png` |
+| E10 | Rate limit: sexto intento dentro del mismo minuto | `429 Too Many Requests` | `7. Rate limit sexto intento 429.png` |
+| E11 | `GET /auth/me` con origen permitido y sin token | `401 Unauthorized` | `5. Auth me sin token 401.png` |
+| E12 | `GET /auth/me` con origen permitido y JWT válido | `200 OK` | `5. Auth me con token 200.png` |
+| E13 | Configuración de seguridad en el código | `main.ts` (CORS), `app.module.ts` (Throttler y `APP_GUARD`), `auth.controller.ts` (`@Throttle`) y `.gitignore` (`.env`) | `8. main.ts CORS.png`, `8. app.module.ts Throttler.png`, `8. app.module.ts APP_GUARD.png`, `8. auth.controller.ts Throttle.png` y `8. gitignore.png` |
+| E14 | Documentación de HTTPS/TLS y secretos | Apartados 3 y 4 de esta sección | `9. README HTTPS y secretos.png` |
+| E15 | Preguntas conceptuales de cierre | Apartado 7 de esta sección | `9. README preguntas.png` |
+
+Las capturas `1. login admin.png`, `1. login estudiante.png`, `1. login maestro primero.png` y `1. login maestro segundo.png` documentan la obtención de los tokens usados en las pruebas anteriores; los tokens no se muestran completos.
+
+Las columnas de resultado indican lo esperado; cada captura debe mostrar el resultado real obtenido.
+
+**Consideraciones al probar:**
+
+- Los inicios de sesión usados para obtener tokens cuentan para el límite de 5 por minuto. Se obtienen todos los tokens primero y se espera un minuto completo antes de la prueba E09 y E10.
+- Los tokens duran 15 minutos; las cinco pruebas de `PATCH` se hacen seguidas.
+- El límite global de 20 solicitudes por minuto afecta a todas las rutas; las pruebas se realizan sin ráfagas innecesarias.
+- No se muestran tokens completos en las capturas.
+
+### 7. Preguntas conceptuales de cierre
+
+**1. ¿Por qué CORS no protege una API de Postman?**
+
+CORS es una regla que aplican los **navegadores**: deciden si una página de otro origen puede leer la respuesta. Postman, Thunder Client, `curl`, un script o un servidor externo no son navegadores y no aplican esa regla, de modo que pueden enviar la petición y leer la respuesta sin restricción. Por eso la API debe protegerse en el servidor con JWT, roles y propiedad; CORS solo es una capa complementaria para clientes web.
+
+**2. ¿Qué información no debe aparecer en la respuesta de un rate limit?**
+
+La respuesta `429 Too Many Requests` no debe revelar si el correo existe o si la contraseña era correcta, ni mostrar tokens, secretos, trazas de error, detalles internos de la base de datos o de la configuración de la API. Solo debe indicar que el cliente excedió el límite y que debe esperar.
+
+**3. ¿Por qué un token en HTTP es un riesgo aun si su firma es correcta?**
+
+La firma garantiza que el token no fue alterado y que lo emitió el servidor, pero **no lo cifra** ni evita que otros lo vean. En HTTP, cualquiera que intercepte el tráfico en una red no confiable puede copiar el token Bearer y reutilizarlo hasta que expire, y el servidor lo aceptará porque su firma es válida. HTTPS/TLS cifra el tráfico y protege el token durante el transporte.
+
+### 8. Archivos relacionados con la implementación
+
+- `src/main.ts`: configuración de CORS.
+- `src/app.module.ts`: `ThrottlerModule` con el límite global y `ThrottlerGuard` como `APP_GUARD`.
+- `src/auth/auth.controller.ts`: `@Throttle` en `POST /auth/login`.
+- `.env.example` y `.gitignore`: plantilla de variables sin secretos y exclusión de `.env`.
+- `README.md`: requisito de HTTPS/TLS y gestión de secretos.
+
+### 9. Alcance de la Sesión 20
+
+Esta etapa incorpora:
+
+- CORS limitado a los orígenes documentados.
+- Limitación de solicitudes global y estricta en el inicio de sesión, con respuesta `429`.
+- Comprobación de que las rutas protegidas siguen exigiendo JWT aunque CORS permita el origen.
+- Documentación de HTTPS/TLS y de la gestión de secretos como requisito de producción.
+
+**Fuera del alcance:** configuración de un certificado TLS en el entorno local, refresh tokens, revocación de tokens, recuperación de cuenta y OAuth.
+
 ## Modelo de datos
 
 El modelo académico principal relaciona tres entidades:
@@ -1051,7 +1506,7 @@ Student 1 ───── N Enrollment N ───── 1 Course
 
 Un estudiante puede tener varias matrículas y un curso puede tener varios estudiantes matriculados. Cada matrícula se relaciona con un estudiante y un curso mediante relaciones y claves foráneas.
 
-El registro de usuarios utiliza la tabla adicional `users`.
+El registro de usuarios utiliza la tabla adicional `users`. Desde la Semana 10, cada curso registra además el usuario que lo creó mediante `createdByUserId`.
 
 ### Estudiante
 
@@ -1086,16 +1541,20 @@ Ejemplo de respuesta:
 | `id` | Identificador del curso |
 | `title` | Título del curso |
 | `level` | Nivel del curso |
+| `createdByUserId` | Identificador del usuario que creó el curso (Semana 10) |
 
 Ejemplo:
 
 ```json
 {
-  "id": 3,
-  "title": "Desarrollo Backend con NestJS",
-  "level": "intermediate"
+  "id": 6,
+  "title": "Curso de prueba docente",
+  "level": "beginner",
+  "createdByUserId": 2
 }
 ```
+
+`createdByUserId` se asigna a partir del usuario autenticado, no del cuerpo de la solicitud. Los cursos creados antes de la Semana 10 pueden no tener propietario asociado, según los datos existentes en la base de datos local.
 
 ### Matrícula
 
@@ -1119,9 +1578,12 @@ La API verifica que existan el estudiante y el curso, que el estudiante esté ac
 | `id` | Identificador generado automáticamente |
 | `email` | Correo único |
 | `passwordHash` | Hash de la contraseña |
+| `role` | Rol del usuario: `admin`, `teacher` o `student`; predeterminado `student` (Semana 10) |
 | `createdAt` | Fecha de creación |
 
 El campo `passwordHash` almacena el resultado de bcrypt, no la contraseña en texto plano. La propiedad utiliza `select: false` para evitar su inclusión automática en consultas ordinarias.
+
+El campo `role` es una enumeración (`UserRole`). El registro público siempre crea cuentas con el rol `student`; los roles `teacher` y `admin` se asignan de forma controlada en la base de datos.
 
 ## Endpoints de estudiantes
 
@@ -1240,14 +1702,16 @@ La eliminación está sujeta a las reglas de negocio implementadas.
 
 ### Endpoints disponibles
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/courses` | Consultar cursos con filtros, paginación y ordenamiento |
-| `GET` | `/courses/:id` | Obtener un curso por ID |
-| `POST` | `/courses` | Crear un curso |
-| `PATCH` | `/courses/:id` | Actualizar un curso |
-| `DELETE` | `/courses/:id` | Eliminar un curso |
-| `GET` | `/courses/:courseId/enrollments` | Consultar matrículas de un curso; requiere JWT |
+| Método | Ruta | Descripción | Acceso |
+|---|---|---|---|
+| `GET` | `/courses` | Consultar cursos con filtros, paginación y ordenamiento | Sin restricción por rol |
+| `GET` | `/courses/:id` | Obtener un curso por ID | Sin restricción por rol |
+| `POST` | `/courses` | Crear un curso | JWT; rol `teacher` o `admin` |
+| `PATCH` | `/courses/:id` | Actualizar un curso | JWT; `admin` o `teacher` propietario |
+| `DELETE` | `/courses/:id` | Eliminar un curso | JWT; solo `admin` |
+| `GET` | `/courses/:courseId/enrollments` | Consultar matrículas de un curso | JWT |
+
+Las restricciones de escritura se introdujeron en la Semana 10 (véase [Semana 10](#semana-10-roles-permisos-y-propiedad-de-recursos-sesión-19)). Un token ausente o inválido produce `401 Unauthorized`; una identidad válida sin permiso produce `403 Forbidden`.
 
 ### Consulta de cursos
 
@@ -1291,8 +1755,11 @@ Los resultados dependen de los registros existentes y de los filtros enviados.
 
 ### Crear un curso
 
+Requiere un JWT de una cuenta con rol `teacher` o `admin`:
+
 ```http
 POST /courses
+Authorization: Bearer <token-jwt>
 Content-Type: application/json
 ```
 
@@ -1304,6 +1771,24 @@ Ejemplo:
   "level": "intermediate"
 }
 ```
+
+La respuesta incluye `createdByUserId`, que corresponde al usuario autenticado. Si la solicitud la realiza una cuenta `student`, se rechaza con `403 Forbidden`.
+
+### Actualizar y eliminar un curso
+
+```http
+PATCH /courses/6
+Authorization: Bearer <token-jwt>
+```
+
+Un `admin` puede actualizar cualquier curso; un `teacher` solo los que creó. Si un docente intenta modificar un curso de otro usuario, la respuesta es `403 Forbidden`.
+
+```http
+DELETE /courses/6
+Authorization: Bearer <token-jwt>
+```
+
+La eliminación está reservada para el rol `admin`.
 
 ## Endpoints de matrículas
 
@@ -1317,7 +1802,7 @@ Ejemplo:
 | `GET` | `/courses/:courseId/enrollments` | Consultar matrículas de un curso; requiere JWT |
 | `DELETE` | `/enrollments/:id` | Cancelar una matrícula; requiere JWT |
 
-Desde la Semana 9, `EnrollmentsController` aplica `JwtAuthGuard` a todas sus rutas. Cada solicitud debe incluir `Authorization: Bearer <token-jwt>`; sin él, la respuesta es `401 Unauthorized`.
+Desde la Semana 9, `EnrollmentsController` aplica `JwtAuthGuard` a todas sus rutas. Cada solicitud debe incluir `Authorization: Bearer <token-jwt>`; sin él, la respuesta es `401 Unauthorized`. La Semana 10 no añadió restricciones por rol a las matrículas.
 
 ### Crear una matrícula
 
@@ -1447,7 +1932,7 @@ Respuesta ilustrativa:
 }
 ```
 
-La respuesta no incluye el hash de la contraseña. Para repetir la prueba, se debe utilizar un correo que no esté registrado previamente.
+La respuesta no incluye el hash de la contraseña. Para repetir la prueba, se debe utilizar un correo que no esté registrado previamente. Toda cuenta registrada mediante este endpoint recibe el rol `student`.
 
 ### Inicio de sesión
 
@@ -1465,7 +1950,7 @@ Content-Type: application/json
 }
 ```
 
-La API valida los datos mediante `LoginDto`, normaliza el correo, busca al usuario y recupera expresamente el hash almacenado. Después utiliza `bcrypt.compare` para verificar la contraseña. Si las credenciales son válidas, genera un token JWT firmado con el secreto configurado y devuelve `accessToken` junto con el objeto público `user`.
+La API valida los datos mediante `LoginDto`, normaliza el correo, busca al usuario y recupera expresamente el hash almacenado. Después utiliza `bcrypt.compare` para verificar la contraseña. Si las credenciales son válidas, genera un token JWT firmado con el secreto configurado, que desde la Semana 10 incluye el rol del usuario, y devuelve `accessToken` junto con el objeto público `user`.
 
 Respuesta ilustrativa:
 
@@ -1508,6 +1993,7 @@ Si no se proporciona un token válido, la solicitud se rechaza con `401 Unauthor
 | Correo o contraseña con formato inválido | `400 Bad Request` | Los datos no cumplen las validaciones |
 | Usuario inexistente o contraseña incorrecta | `401 Unauthorized` | No se pudo autenticar al usuario |
 | Token ausente, con esquema distinto de Bearer, alterado, firmado con otro secreto o expirado en una ruta protegida | `401 Unauthorized` | Se requiere autenticación válida |
+| Token válido sin el rol o la propiedad requeridos | `403 Forbidden` | La identidad existe, pero no tiene permiso |
 | Token válido con cuerpo inválido en una ruta protegida | `400 Bad Request` | La autenticación y la validación son capas distintas |
 | Correo duplicado | `409 Conflict` | El correo ya está registrado |
 
@@ -1525,9 +2011,10 @@ Los mensajes exactos de validación dependen de las reglas configuradas en los D
 - El inicio de sesión emite un JWT firmado.
 - Las rutas protegidas utilizan `JwtAuthGuard` y `JwtStrategy` para validar los tokens.
 - Todas las rutas de matrículas, incluida `POST /enrollments`, requieren autenticación.
-- Una identidad ausente o inválida produce `401`; los permisos por rol (`403`) se implementarán en la Semana 10.
+- Una identidad ausente o inválida produce `401`; una identidad válida sin el rol o la propiedad requeridos produce `403`.
 - El payload del JWT no debe contener contraseñas ni secretos.
-- La autorización mediante roles no forma parte del alcance actual.
+- El registro público siempre asigna el rol `student`; los roles superiores se asignan de forma controlada.
+- La propiedad de un curso se obtiene del usuario autenticado, nunca del cuerpo de la solicitud.
 
 ## Validaciones y respuestas HTTP
 
@@ -1539,6 +2026,7 @@ La API utiliza DTOs, `class-validator`, `class-transformer` y un `ValidationPipe
 | `201 Created` | Recurso creado | Crear un estudiante, curso, matrícula o usuario |
 | `400 Bad Request` | Solicitud o parámetro inválido | `page=0`, `limit=100`, correo inválido o identificador de matrícula no positivo |
 | `401 Unauthorized` | Autenticación no válida | Credenciales incorrectas, token ausente o token inválido en ruta protegida |
+| `403 Forbidden` | Identidad válida sin permiso | Un estudiante intenta crear un curso o un docente modifica un curso ajeno |
 | `404 Not Found` | Recurso inexistente | Consultar un estudiante inexistente |
 | `409 Conflict` | Conflicto con los datos | Matrícula duplicada, estudiante inactivo o correo duplicado |
 
@@ -1765,7 +2253,7 @@ GET /enrollments?search=xyz999
 
 La respuesta debe respetar los filtros enviados y presentar los metadatos correspondientes.
 
-**Nota:** desde la Semana 9, las consultas de `/enrollments` requieren el encabezado `Authorization: Bearer <token-jwt>`. Las consultas de cursos y estudiantes continúan siendo públicas.
+**Nota:** desde la Semana 9, las consultas de `/enrollments` requieren el encabezado `Authorization: Bearer <token-jwt>`. Las consultas `GET` de cursos y estudiantes no se vieron afectadas por esa protección. En la Semana 10 se comprobó que `GET /courses` y su paginación siguen funcionando después de añadir los roles.
 
 ### Demostración de consultas de estudiantes
 
@@ -1917,6 +2405,52 @@ Las evidencias documentan:
 
 Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos. No se deben publicar tokens reales en el README, en Git ni en documentación compartida.
 
+### Evidencias de la Semana 10 — Sesión 19
+
+Las capturas de roles, permisos y propiedad de cursos se encuentran en:
+
+```text
+evidencias/actuacion10/
+```
+
+El detalle de cada archivo está en la sección [Semana 10, apartado 11](#11-evidencias-de-la-semana-10).
+
+Las evidencias documentan:
+
+- Usuarios y roles en PostgreSQL, antes y después de asignar los roles de práctica.
+- Compilación correcta e inicio del servidor tras importar `AuthModule` en `CoursesModule`.
+- Inicio de sesión como docente y como estudiante.
+- Creación de un curso por un docente, con `createdByUserId`.
+- Rechazo de la creación de un curso por un estudiante.
+- Modificación de un curso propio por un docente.
+- Rechazo de la modificación de un curso de otro usuario.
+- Eliminación de un curso temporal por un administrador.
+- Consultas `GET /courses` con paginación y límites inferior y superior.
+- Restauración de los roles de práctica al finalizar las pruebas.
+
+Las comprobaciones sin captura específica están indicadas en [Semana 10, apartado 10](#10-pruebas-sin-evidencia-propia). Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### Evidencias de la Semana 10 — Sesión 20
+
+Las capturas de CORS, limitación de solicitudes y autorización por roles se encuentran en:
+
+```text
+evidencias/actuacion11/
+```
+
+El detalle de cada prueba está en la sección [Semana 10, Sesión 20, apartado 6](#6-pruebas-y-evidencias-de-la-sesión-20).
+
+Las evidencias documentan:
+
+- Cinco casos de `PATCH /courses/6`: sin token (`401`), estudiante (`403`), docente no propietario (`403`), docente propietario (`200`) y administrador (`200`).
+- Ruta exclusiva de administración (`DELETE /courses/999999`) con docente y con administrador.
+- CORS con origen permitido y con origen no permitido.
+- Limitación de solicitudes de `POST /auth/login`: quinto intento (`200`) y sexto intento (`429`).
+- `GET /auth/me` con el origen permitido, sin token (`401`) y con token (`200`).
+- Configuración de seguridad en el código y documentación de HTTPS/TLS y secretos.
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -1961,6 +2495,17 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - Validación de identificadores de matrícula mediante DTOs.
 - Verificación de que una solicitud de matrícula sin autenticación no produce inserciones.
 - Rechazo de matrículas duplicadas después de autenticar al usuario.
+- JWT con el rol del usuario (`teacher`) tras el inicio de sesión.
+- Creación de cursos por un docente con `createdByUserId`.
+- Rechazo de la creación de cursos por un estudiante.
+- Modificación de un curso propio por un docente.
+- Rechazo de la modificación de un curso ajeno por un docente.
+- Eliminación de un curso por un administrador.
+- Consulta y paginación de cursos después de añadir los roles.
+- Cinco casos de autorización sobre `PATCH /courses/:id` (401, 403, 403, 200 y 200).
+- CORS con origen permitido y con origen no permitido.
+- Limitación de solicitudes en `POST /auth/login` (`429` en el sexto intento dentro de un minuto).
+- Verificación de que `GET /auth/me` sigue exigiendo JWT con CORS habilitado.
 
 Los puntos deben considerarse pruebas realizadas solo cuando se hayan confirmado con las solicitudes HTTP, las consultas a la base de datos o el código correspondiente.
 
@@ -1984,13 +2529,21 @@ La funcionalidad de registro añade la tabla:
 users
 ```
 
-Esta tabla almacena el correo, el hash de la contraseña y la fecha de creación del usuario.
+Esta tabla almacena el correo, el hash de la contraseña, el rol y la fecha de creación del usuario. La tabla `courses` almacena, además, el identificador del usuario que creó cada curso (`createdByUserId`).
 
 La persistencia se puede verificar reiniciando la API y consultando nuevamente los registros almacenados, siempre que se utilice la misma base de datos.
 
 La autenticación incorpora la tabla `users`, destinada a almacenar las cuentas de acceso. La contraseña original no se almacena en texto plano. La persistencia de las cuentas se comprueba consultando PostgreSQL y verificando que los registros continúan disponibles después de reiniciar la API.
 
 Las solicitudes no autenticadas a `POST /enrollments` se rechazan antes de crear la matrícula. Esta comprobación se realizó contrastando el resultado HTTP con el recuento de registros en PostgreSQL.
+
+Para comprobar los roles asignados a las cuentas de práctica, se puede consultar (sin mostrar hashes):
+
+```sql
+SELECT id, email, role
+FROM users
+ORDER BY id;
+```
 
 ## Seguridad de credenciales
 
@@ -2036,14 +2589,20 @@ Además:
 - Los correos se normalizan antes de registrar o buscar cuentas.
 - La base de datos mantiene la restricción de unicidad del correo.
 - No se deben incluir contraseñas reales, tokens ni otros secretos en el README, en capturas de pantalla o en los commits.
-- El JWT contiene únicamente `sub` y `email` como datos propios del payload; `iat` y `exp` se añaden para emisión y expiración.
+- El JWT contiene únicamente `sub`, `email` y `role` como datos propios del payload; `iat` y `exp` se añaden para emisión y expiración.
 - La vigencia configurada del token es de 15 minutos mediante `JWT_EXPIRES_IN=15m`.
 - Las rutas protegidas validan el JWT mediante `JwtStrategy` y `JwtAuthGuard`; la estrategia respeta la expiración (`ignoreExpiration: false`).
 - El payload se construye de forma explícita; no se pasa la entidad `User` a `signAsync`.
 - Un secreto distinto en cada ambiente: si cambia, los tokens emitidos con el anterior dejan de ser válidos.
 - El `.env` real no debe incluirse en archivos comprimidos ni compartirse; solo se comparte `.env.example`.
 - Si un token se expone, se debe esperar a su expiración o cambiar el secreto local para invalidarlo.
-- La autorización mediante roles no forma parte del alcance actual.
+- El rol predeterminado de una cuenta nueva es `student`, el de menor privilegio.
+- Los roles `teacher` y `admin` se asignan de forma controlada en la base de datos; no existe un endpoint público que permita elegir el rol al registrarse.
+- La propiedad de un curso (`createdByUserId`) se toma del usuario autenticado y no puede enviarse en el cuerpo de la solicitud.
+- Los roles de práctica modificados durante las pruebas se restauraron al finalizar.
+- En producción la API debe servirse solo mediante HTTPS/TLS; un token Bearer enviado por HTTP puede ser interceptado aunque su firma sea correcta.
+- CORS admite únicamente los orígenes documentados y no sustituye a JWT ni a la autorización en el servidor.
+- `POST /auth/login` está limitado a 5 solicitudes por minuto y las demás rutas a 20; la respuesta `429` no revela si las credenciales eran correctas.
 
 ## Comandos disponibles
 
@@ -2111,12 +2670,13 @@ Los comandos disponibles dependen de los scripts declarados en `package.json`.
 - [@nestjs/jwt](https://github.com/nestjs/jwt)
 - [Passport en NestJS](https://docs.nestjs.com/recipes/passport)
 - [Guards de NestJS](https://docs.nestjs.com/guards)
+- [Autorización en NestJS](https://docs.nestjs.com/security/authorization)
 - [passport-jwt](https://www.passportjs.org/packages/passport-jwt/)
 - [RFC 7519: JSON Web Token](https://www.rfc-editor.org/rfc/rfc7519)
 
 ## Estado del proyecto
 
-CourseHub API cuenta con módulos de estudiantes, cursos y matrículas, persistencia mediante PostgreSQL, relaciones gestionadas con TypeORM y validación de datos de entrada.
+CourseHub API cuenta con módulos de estudiantes, cursos y matrículas, persistencia mediante PostgreSQL, relaciones gestionadas con TypeORM, validación de datos de entrada, autenticación con JWT y autorización basada en roles.
 
 Las funcionalidades documentadas incluyen:
 
@@ -2143,7 +2703,7 @@ Las funcionalidades documentadas incluyen:
 - Verificación de contraseñas mediante `bcrypt.compare`.
 - Prevención de correos duplicados.
 - Respuestas de autenticación sin contraseña ni hash.
-- Emisión de tokens JWT con `sub` y `email` en el payload.
+- Emisión de tokens JWT con `sub`, `email` y `role` en el payload.
 - Validación de `JWT_SECRET` obligatorio mediante Joi.
 - Configuración de expiración del token mediante `JWT_EXPIRES_IN` (15 minutos).
 - Verificación de tokens mediante `JwtStrategy` (Passport) y `JwtAuthGuard`.
@@ -2152,8 +2712,15 @@ Las funcionalidades documentadas incluyen:
 - Registro y login como rutas públicas.
 - Rechazo de solicitudes protegidas sin token válido (`401`).
 - Validación de datos mediante DTOs en la creación de matrículas.
+- Roles `admin`, `teacher` y `student`, con `student` como predeterminado.
+- Autorización mediante `@Roles()` y `RolesGuard`.
+- Control de propiedad de cursos mediante `createdByUserId`.
+- Restricciones de creación, modificación y eliminación de cursos según rol y propiedad, con respuestas `403 Forbidden`.
 - Pruebas de inicio de sesión, payload, ausencia de secreto y cambio de secreto.
-- Evidencias de las pruebas de registro, inicio de sesión, validaciones y protección de rutas.
+- CORS restringido a los orígenes documentados.
+- Limitación de solicitudes (`@nestjs/throttler`): 20 por minuto de forma global y 5 por minuto en el inicio de sesión (`429`).
+- Documentación de HTTPS/TLS y de la gestión de secretos como requisito de producción.
+- Evidencias de las pruebas de registro, inicio de sesión, validaciones, protección de rutas, permisos por rol y controles de la Sesión 20.
 
 En la Semana 6 se amplió `GET /students` para incorporar búsqueda textual, filtros combinables, paginación, ordenamiento controlado y validación de parámetros.
 
@@ -2197,9 +2764,43 @@ Las funcionalidades incorporadas incluyen:
 
 Las evidencias de JWT y protección de rutas se guardan en `evidencias/actuacion7/`, `evidencias/actuacion8/` y `evidencias/actuacion9/`.
 
-La autorización por roles, los `403 Forbidden`, los decoradores personalizados, los refresh tokens y la revocación de tokens no se incluyen en este avance; la Semana 10 incorporará la diferencia entre autenticación y autorización.
+### Avance de la Semana 10 — Sesión 19
 
-La autorización por roles no se incluye en este avance, ya que no forma parte de las funcionalidades implementadas y verificadas.
+Se implementó la autorización basada en roles y la propiedad de los cursos.
+
+Las funcionalidades incorporadas incluyen:
+
+- Enumeración `UserRole` (`admin`, `teacher`, `student`) y campo `role` en `User`, con `student` como valor predeterminado.
+- Inclusión del rol en el JWT.
+- Decorador `@Roles()` y `RolesGuard`, aplicados después de `JwtAuthGuard`.
+- Campo `createdByUserId` en `Course`, asignado desde el usuario autenticado.
+- Reglas de autorización en `CoursesService` y `CoursesController`: los docentes crean cursos y solo modifican los propios, los administradores gestionan cualquier curso y son los únicos que los eliminan, y los estudiantes no pueden crear, modificar ni eliminar.
+- Importación de `AuthModule` en `CoursesModule`.
+- Respuestas `403 Forbidden` para identidades válidas sin permiso.
+
+Las pruebas con evidencia comprueban el rol en el JWT, la creación de cursos por un docente, el rechazo de un estudiante, la modificación de un curso propio, el rechazo de la modificación de un curso ajeno, la eliminación por un administrador y la continuidad de las consultas `GET /courses` con paginación. Las comprobaciones sin captura propia se indican en [Semana 10, apartado 10](#10-pruebas-sin-evidencia-propia).
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion10/`.
+
+Los refresh tokens y la revocación de tokens no se incluyen en este avance. Los controles de seguridad adicionales se implementaron en la Sesión 20 (véase el avance siguiente).
+
+### Avance de la Semana 10 — Sesión 20
+
+Se incorporaron controles de seguridad para una API pública, siguiendo el enfoque de defensa en profundidad.
+
+Las funcionalidades incorporadas incluyen:
+
+- CORS configurado con `app.enableCors` para admitir únicamente el origen documentado (`http://localhost:5173` en desarrollo), con los métodos `GET`, `POST`, `PATCH` y `DELETE` y los encabezados `Content-Type` y `Authorization`.
+- Limitación de solicitudes con `@nestjs/throttler`: `ThrottlerGuard` global con 20 solicitudes por minuto y `@Throttle` de 5 por minuto en `POST /auth/login`, que responde `429 Too Many Requests` al superar el límite.
+- Comprobación de que las rutas protegidas siguen requiriendo JWT aunque CORS permita el origen.
+- README con HTTPS/TLS como requisito de producción y con la gestión de secretos mediante variables de entorno.
+- Respuestas a las tres preguntas conceptuales de cierre.
+
+La demostración muestra una misma ruta (`PATCH /courses/6`) con cinco casos: sin token (`401`), token de estudiante (`403`), token de docente ajeno (`403`), token de docente propietario (`200`) y token de administrador (`200`).
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion11/`. El detalle está en la sección [Semana 10, Sesión 20](#semana-10-controles-de-seguridad-para-una-api-pública-sesión-20).
+
+Los refresh tokens, la revocación de tokens y la configuración de un certificado TLS local quedan fuera de este avance.
 
 Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
 

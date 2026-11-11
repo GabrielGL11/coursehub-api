@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import Joi from 'joi';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -31,22 +33,26 @@ import { AuthModule } from './auth/auth.module.js';
       }),
     }),
 
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const environment = config.getOrThrow<string>('NODE_ENV');
-
-        return {
-          type: 'postgres' as const,
-          host: config.getOrThrow<string>('DATABASE_HOST'),
-          port: config.getOrThrow<number>('DATABASE_PORT'),
-          username: config.getOrThrow<string>('DATABASE_USER'),
-          password: config.getOrThrow<string>('DATABASE_PASSWORD'),
-          database: config.getOrThrow<string>('DATABASE_NAME'),
-          autoLoadEntities: true,
-          synchronize: environment === 'development',
-        };
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 20,
       },
+    ]),
+
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres' as const,
+        host: config.getOrThrow<string>('DATABASE_HOST'),
+        port: config.getOrThrow<number>('DATABASE_PORT'),
+        username: config.getOrThrow<string>('DATABASE_USER'),
+        password: config.getOrThrow<string>('DATABASE_PASSWORD'),
+        database: config.getOrThrow<string>('DATABASE_NAME'),
+        autoLoadEntities: true,
+        synchronize: config.get<string>('NODE_ENV') === 'development',
+      }),
     }),
 
     CoursesModule,
@@ -56,6 +62,13 @@ import { AuthModule } from './auth/auth.module.js';
     AuthModule,
   ],
   controllers: [AppController, WelcomeController],
-  providers: [AppService, WelcomeService],
+  providers: [
+    AppService,
+    WelcomeService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

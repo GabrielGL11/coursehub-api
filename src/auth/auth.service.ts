@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service.js';
+import { UserRole } from '../users/user-role.enum.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 
@@ -30,10 +31,11 @@ export class AuthService {
     try {
       const user = await this.usersService.create(email, passwordHash);
 
-      // Nunca devolver la contraseña ni su hash.
+      // Las cuentas nuevas reciben el rol de menor privilegio.
       return {
         id: user.id,
         email: user.email,
+        role: user.role ?? UserRole.STUDENT,
         createdAt: user.createdAt,
       };
     } catch (error: unknown) {
@@ -52,7 +54,7 @@ export class AuthService {
   }
 
   /**
-   * Comprueba las credenciales y emite un JWT.
+   * Comprueba las credenciales y emite un JWT con el rol del usuario.
    */
   async login(dto: LoginDto) {
     const email = dto.email.trim().toLowerCase();
@@ -73,10 +75,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Payload mínimo: no incluir contraseña ni passwordHash.
+    // Payload JWT: identificador, correo y rol.
+    // Nunca incluir la contraseña ni passwordHash.
     const payload = {
       sub: user.id,
       email: user.email,
+      role: user.role ?? UserRole.STUDENT,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -86,6 +90,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        role: user.role ?? UserRole.STUDENT,
         createdAt: user.createdAt,
       },
     };
