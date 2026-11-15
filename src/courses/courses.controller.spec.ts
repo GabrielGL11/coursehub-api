@@ -2,6 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CoursesController } from './courses.controller.js';
 import { CoursesService } from './courses.service.js';
+import { UpdateCourseUseCase } from './use-cases/update-course.use-case.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { UserRole } from '../users/user-role.enum.js';
@@ -14,8 +15,11 @@ describe('CoursesController', () => {
     findAll: vi.fn(),
     findOne: vi.fn(),
     create: vi.fn(),
-    update: vi.fn(),
     remove: vi.fn(),
+  };
+
+  const updateCourseUseCaseMock = {
+    execute: vi.fn(),
   };
 
   const docente: AuthenticatedUser = {
@@ -29,7 +33,10 @@ describe('CoursesController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CoursesController],
-      providers: [{ provide: CoursesService, useValue: coursesServiceMock }],
+      providers: [
+        { provide: CoursesService, useValue: coursesServiceMock },
+        { provide: UpdateCourseUseCase, useValue: updateCourseUseCaseMock },
+      ],
     })
       // Los guards se prueban por separado; aquí se reemplazan para probar el controlador.
       .overrideGuard(JwtAuthGuard)
@@ -62,7 +69,7 @@ describe('CoursesController', () => {
     const curso = { id: 1, title: 'NestJS desde cero', level: 'beginner' };
     coursesServiceMock.findOne.mockResolvedValue(curso);
 
-    await expect(controller.findOne('1')).resolves.toEqual(curso);
+    await expect(controller.findOne(1)).resolves.toEqual(curso);
     expect(coursesServiceMock.findOne).toHaveBeenCalledWith(1);
   });
 
@@ -77,19 +84,25 @@ describe('CoursesController', () => {
     expect(coursesServiceMock.create).toHaveBeenCalledWith(dto, docente);
   });
 
-  it('debe actualizar un curso pasando el ID numérico y el usuario autenticado', async () => {
+  it('debe delegar la actualización al caso de uso con el ID numérico y el usuario autenticado', async () => {
     const body = { title: 'Título nuevo' };
-    coursesServiceMock.update.mockResolvedValue({ id: 6, ...body });
+    updateCourseUseCaseMock.execute.mockResolvedValue({ id: 6, ...body });
 
-    await controller.update('6', body, { user: docente });
+    await expect(
+      controller.update(6, body, { user: docente }),
+    ).resolves.toEqual({ id: 6, ...body });
 
-    expect(coursesServiceMock.update).toHaveBeenCalledWith(6, body, docente);
+    expect(updateCourseUseCaseMock.execute).toHaveBeenCalledWith(
+      6,
+      body,
+      docente,
+    );
   });
 
   it('debe eliminar un curso convirtiendo el ID a número', async () => {
     coursesServiceMock.remove.mockResolvedValue({ id: 7 });
 
-    await controller.remove('7');
+    await controller.remove(7);
 
     expect(coursesServiceMock.remove).toHaveBeenCalledWith(7);
   });

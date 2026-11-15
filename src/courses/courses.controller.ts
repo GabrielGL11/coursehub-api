@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards, Request } from '@nestjs/common';
 import { CoursesService } from './courses.service.js';
+import { UpdateCourseUseCase } from './use-cases/update-course.use-case.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CoursesQueryDto } from './dto/courses-query.dto.js';
@@ -13,6 +14,7 @@ import type { AuthenticatedUser } from '../auth/types/jwt-payload.type.js';
 export class CoursesController {
     constructor(
         private readonly coursesService: CoursesService,
+        private readonly updateCourseUseCase: UpdateCourseUseCase,
     ) {}
 
     @Get()
@@ -21,8 +23,8 @@ export class CoursesController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.coursesService.findOne(Number(id));
+    findOne(@Param('id', ParseIntPipe) id: number) {
+        return this.coursesService.findOne(id);
     }
 
     @Post()
@@ -42,12 +44,12 @@ export class CoursesController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN, UserRole.TEACHER)
     update(
-        @Param('id') id: string,
+        @Param('id', ParseIntPipe) id: number,
         @Body() body: UpdateCourseDto,
         @Request() req: { user: AuthenticatedUser },
     ) {
-        return this.coursesService.update(
-        Number(id),
+        return this.updateCourseUseCase.execute(
+        id,
         body,
         req.user,
         );
@@ -56,7 +58,7 @@ export class CoursesController {
     @Delete(':id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
-    remove(@Param('id') id: string) {
-        return this.coursesService.remove(Number(id));
+    remove(@Param('id', ParseIntPipe) id: number) {
+        return this.coursesService.remove(id);
     }
 }

@@ -52,7 +52,7 @@ describe('EnrollmentsController', () => {
   it('debe convertir el ID del estudiante a número', async () => {
     enrollmentsServiceMock.findByStudent.mockResolvedValue([]);
 
-    await expect(controller.findByStudent('3')).resolves.toEqual([]);
+    await expect(controller.findByStudent(3)).resolves.toEqual([]);
     expect(enrollmentsServiceMock.findByStudent).toHaveBeenCalledWith(3);
   });
 });

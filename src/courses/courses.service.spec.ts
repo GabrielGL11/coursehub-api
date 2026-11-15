@@ -23,18 +23,6 @@ describe('CoursesService', () => {
     role: UserRole.TEACHER,
   };
 
-  const docenteAjeno: AuthenticatedUser = {
-    id: 4,
-    email: 'docente4@example.com',
-    role: UserRole.TEACHER,
-  };
-
-  const administrador: AuthenticatedUser = {
-    id: 3,
-    email: 'admin@example.com',
-    role: UserRole.ADMIN,
-  };
-
   beforeEach(async () => {
     vi.clearAllMocks();
 
@@ -85,61 +73,5 @@ describe('CoursesService', () => {
       createdByUserId: docentePropietario.id,
     });
     expect(repositoryMock.save).toHaveBeenCalledWith(curso);
-  });
-
-  it('debe permitir que el docente propietario modifique su curso', async () => {
-    const curso = {
-      id: 6,
-      title: 'Curso original',
-      level: 'beginner',
-      createdByUserId: 2,
-    };
-    repositoryMock.findOneBy.mockResolvedValue({ ...curso });
-    repositoryMock.save.mockImplementation(async (c) => c);
-
-    const resultado = await service.update(
-      6,
-      { title: 'Curso actualizado' },
-      docentePropietario,
-    );
-
-    expect(resultado.title).toBe('Curso actualizado');
-    expect(repositoryMock.save).toHaveBeenCalled();
-  });
-
-  it('debe rechazar que un docente modifique el curso de otro docente', async () => {
-    const curso = {
-      id: 6,
-      title: 'Curso original',
-      level: 'beginner',
-      createdByUserId: 2,
-    };
-    repositoryMock.findOneBy.mockResolvedValue({ ...curso });
-
-    await expect(
-      service.update(6, { title: 'Intento ajeno' }, docenteAjeno),
-    ).rejects.toThrow('No tienes permisos para modificar este curso');
-
-    expect(repositoryMock.save).not.toHaveBeenCalled();
-  });
-
-  it('debe permitir que el administrador modifique cualquier curso', async () => {
-    const curso = {
-      id: 6,
-      title: 'Curso original',
-      level: 'beginner',
-      createdByUserId: 2,
-    };
-    repositoryMock.findOneBy.mockResolvedValue({ ...curso });
-    repositoryMock.save.mockImplementation(async (c) => c);
-
-    const resultado = await service.update(
-      6,
-      { title: 'Editado por admin' },
-      administrador,
-    );
-
-    expect(resultado.title).toBe('Editado por admin');
-    expect(repositoryMock.save).toHaveBeenCalled();
   });
 });

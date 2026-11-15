@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -22,6 +22,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Semana 9: autenticación con JWT](#semana-9-autenticación-con-jwt)
 - [Semana 10: roles, permisos y propiedad de recursos (Sesión 19)](#semana-10-roles-permisos-y-propiedad-de-recursos-sesión-19)
 - [Semana 10: controles de seguridad para una API pública (Sesión 20)](#semana-10-controles-de-seguridad-para-una-api-pública-sesión-20)
+- [Semana 11: componentes transversales (Sesión 21)](#semana-11-componentes-transversales-sesión-21)
+- [Semana 11: casos de uso, repositorios y adaptadores (Sesión 22)](#semana-11-casos-de-uso-repositorios-y-adaptadores-sesión-22)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -98,6 +100,12 @@ Las principales funcionalidades incluyen:
 - CORS configurado con un origen explícito (`http://localhost:5173` en desarrollo).
 - Limitación de solicitudes: 20 por minuto de forma global y 5 por minuto en `POST /auth/login`, con respuesta `429 Too Many Requests`.
 - Requisito documentado de HTTPS/TLS y de gestión de secretos fuera del repositorio para producción.
+- Registro de cada solicitud (identificador, método, ruta, estado y duración) mediante un middleware, sin datos sensibles.
+- Respuestas de error con una forma uniforme mediante un filter global; los errores inesperados no exponen detalles internos.
+- Medición del tiempo de respuesta de cada operación mediante un interceptor (`X-Response-Time`).
+- Validación de parámetros numéricos mediante `ParseIntPipe` (`400` ante un `id` no numérico).
+- Caso de uso `UpdateCourseUseCase` con la regla de propiedad, separado del controlador y de TypeORM.
+- Contrato de repositorio pequeño (`CourseRepository`) y adaptador `TypeOrmCourseRepository`, conectados con `provide` y `useClass`.
 
 ## Arquitectura
 
@@ -210,6 +218,17 @@ src/
 │   ├── auth.controller.spec.ts
 │   └── auth.service.spec.ts
 │
+├── common/
+│   ├── filters/
+│   │   ├── http-error.filter.ts
+│   │   └── http-error.filter.spec.ts
+│   ├── interceptors/
+│   │   ├── timing.interceptor.ts
+│   │   └── timing.interceptor.spec.ts
+│   └── middleware/
+│       ├── request-logger.middleware.ts
+│       └── request-logger.middleware.spec.ts
+│
 ├── users/
 │   ├── entities/
 │   │   └── user.entity.ts
@@ -219,8 +238,16 @@ src/
 │   └── users.service.spec.ts
 │
 ├── courses/
+│   ├── domain/
+│   │   └── course.repository.ts
 │   ├── dto/
 │   ├── entities/
+│   ├── infrastructure/
+│   │   ├── typeorm-course.repository.ts
+│   │   └── typeorm-course.repository.spec.ts
+│   ├── use-cases/
+│   │   ├── update-course.use-case.ts
+│   │   └── update-course.use-case.spec.ts
 │   ├── courses.controller.ts
 │   ├── courses.module.ts
 │   └── courses.service.ts
@@ -254,7 +281,9 @@ evidencias/
 ├── actuacion8/
 ├── actuacion9/
 ├── actuacion10/
-└── actuacion11/
+├── actuacion11/
+├── actuacion12/
+└── actuacion13/
 
 .env
 .env.example
@@ -1492,6 +1521,344 @@ Esta etapa incorpora:
 
 **Fuera del alcance:** configuración de un certificado TLS en el entorno local, refresh tokens, revocación de tokens, recuperación de cuenta y OAuth.
 
+## Semana 11: componentes transversales (Sesión 21)
+
+Período de trabajo: Semana 11 (9 al 15 de noviembre de 2026), Sesión 21, Avance de la Etapa 3.
+
+**Resultado de aprendizaje:** elegir el componente transversal correcto para registrar, validar, transformar y manejar errores sin duplicar código en los controladores.
+
+### 1. Etapas de una solicitud
+
+```text
+Solicitud → middleware → guard → pipe → controlador → interceptor → respuesta
+                                   ↓
+                           filter ante excepción
+```
+
+| Componente | Momento | Responsabilidad | Uso en CourseHub API |
+|---|---|---|---|
+| Middleware | Antes del enrutamiento final | Trabajo HTTP general | `RequestLoggerMiddleware`: identificador y registro de la solicitud |
+| Guard | Antes del controlador | Decidir si continúa | `JwtAuthGuard` y `RolesGuard` (Semanas 9 y 10) |
+| Pipe | Antes del método | Validar o transformar datos | `ValidationPipe` global y `ParseIntPipe` en los parámetros numéricos |
+| Interceptor | Antes y después del método | Medir o envolver el resultado | `TimingInterceptor`: encabezado `X-Response-Time` |
+| Filter | Cuando ocurre una excepción | Traducir un error a HTTP | `HttpErrorFilter`: respuesta de error uniforme |
+
+### 2. Middleware de registro seguro
+
+`src/common/middleware/request-logger.middleware.ts` se aplica a todas las rutas desde `AppModule.configure()`. Asigna un identificador (`X-Request-Id`) y, al terminar la respuesta, registra:
+
+```json
+{ "requestId": "…", "method": "GET", "path": "/courses/6", "status": 200, "durationMs": 12 }
+```
+
+**Qué no se registra:** el encabezado `Authorization`, las contraseñas, los tokens, el cuerpo de la petición ni la cadena de consulta (por ejemplo, un correo usado en una búsqueda). Un registro útil contiene contexto operativo sin convertirse en una filtración de datos.
+
+### 3. Pipes
+
+- `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted` y `transform`): valida los cuerpos y las consultas contra los DTOs.
+- `ParseIntPipe` en los parámetros numéricos de cursos y matrículas (`:id`, `:studentId`, `:courseId`). Un valor como `abc` se rechaza con `400 Bad Request` antes de llegar al servicio; sin el pipe, `Number('abc')` produce `NaN` y la consulta fallaría más adentro.
+- `ParseStudentIdPipe` (propio, de la etapa anterior) se mantiene en el módulo de estudiantes porque además exige un entero positivo.
+
+### 4. Filter global de errores
+
+`src/common/filters/http-error.filter.ts` se registra con `APP_FILTER` y devuelve siempre esta forma:
+
+```json
+{
+  "statusCode": 404,
+  "error": "Not Found",
+  "message": "Course 999999 not found",
+  "path": "/courses/999999",
+  "timestamp": "2026-11-12T20:30:00.000Z",
+  "requestId": "…"
+}
+```
+
+| Tipo de error | Respuesta al cliente | Registro interno |
+|---|---|---|
+| Error HTTP controlado (400, 401, 403, 404, 409, 429) | Conserva su estado y su mensaje | No se registra como error |
+| Error inesperado (500) | `Internal server error`, sin traza, consulta SQL ni variables de entorno | Traza completa, solo en el log del servidor |
+
+Los mensajes de validación (`400`) se conservan como lista dentro de `message`. La ruta (`path`) no incluye la cadena de consulta.
+
+### 5. Interceptor de tiempo de respuesta
+
+`src/common/interceptors/timing.interceptor.ts` se registra con `APP_INTERCEPTOR`. Mide lo que tarda el método del controlador y lo informa en el encabezado `X-Response-Time` (por ejemplo, `12ms`). No modifica el resultado ni oculta errores: es una preocupación transversal, no una regla de negocio.
+
+El encabezado aparece en las respuestas exitosas; cuando una operación falla, el filter responde y el tiempo queda en el registro del middleware.
+
+### 6. Registro de los componentes
+
+Todos se registran de forma global en `src/app.module.ts`:
+
+```typescript
+providers: [
+  { provide: APP_GUARD, useClass: ThrottlerGuard },
+  { provide: APP_FILTER, useClass: HttpErrorFilter },
+  { provide: APP_INTERCEPTOR, useClass: TimingInterceptor },
+],
+// ...
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestLoggerMiddleware)
+      .forRoutes({ path: '*path', method: RequestMethod.ALL });
+  }
+}
+```
+
+### 7. Pruebas y evidencias de la Sesión 21
+
+Las capturas se guardan en:
+
+```text
+evidencias/actuacion12/
+```
+
+| Código | Prueba | Resultado esperado | Archivo en `evidencias/actuacion12/` |
+|---|---|---|---|
+| E01 | `npm run build` y `npm run test` | Compilación correcta y todas las pruebas en verde (incluidas las del middleware, el filter y el interceptor) | `1. Compilación y pruebas arriba.png` y `1. Compilación y pruebas abajo.png` |
+| E02 | Código de los componentes | `RequestLoggerMiddleware`, `HttpErrorFilter`, `TimingInterceptor`, registro en `app.module.ts` y `ParseIntPipe` en el controlador | `2. RequestLoggerMiddleware.png`, `2. HttpErrorFilter.png`, `2. TimingInterceptor.png`, `2. Registro en app.module.png` y `2. ParseIntPipe en courses.controller arriba.png` y `2. ParseIntPipe en courses.controller abajo.png` |
+| E03 | `GET /courses/abc` | `400 Bad Request` (pipe) con la forma uniforme | `3. ParseIntPipe 400.png` |
+| E04 | `POST /students` con un cuerpo inválido | `400 Bad Request` (`ValidationPipe`) con la lista de mensajes | `4. ValidationPipe 400.png` |
+| E05 | `GET /courses/999999` | `404 Not Found` con la forma uniforme | `5. Recurso inexistente 404.png` |
+| E06 | `GET /auth/me` sin token | `401 Unauthorized` (guard) con la forma uniforme | `6. Token requerido 401.png` |
+| E07 | Error inesperado de práctica | `500` con el mensaje genérico, sin traza ni SQL | `7. Cambio en el codigo temporalmente.png` (ruta temporal) y `7. Error inesperado 500.png` |
+| E08 | Terminal durante el error `500` | La traza completa aparece solo en el log interno | `7. Log interno del error 500.png` |
+| E09 | Terminal durante las solicitudes anteriores | Líneas con `requestId`, método, ruta, estado y duración; sin tokens ni contraseñas | `8. Log de solicitudes.png` |
+| E10 | Encabezados de una respuesta `200` | `X-Response-Time` y `X-Request-Id` | `9. X-Response-Time.png` |
+| E11 | README | Esta sección y las respuestas de cierre | `10. README Sesión 21.png` y `10. README Sesión 21 - continuación.png` |
+
+El error inesperado de la prueba E07 se provocó con una ruta temporal de práctica que se retiró antes del commit; no forma parte de la API. Las columnas de resultado indican lo esperado; cada captura debe mostrar el resultado real. Antes de entregar, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### 8. Preguntas de cierre
+
+**Token inválido → guard (`JwtAuthGuard`).** Decide si la solicitud puede continuar antes de llegar al controlador y responde `401`. No se usa un middleware porque este no conoce la política de acceso de cada ruta ni deja la identidad lista para los demás componentes; tampoco un filter, que actúa cuando la excepción ya ocurrió y solo da formato a la respuesta.
+
+**`id` no numérico → pipe (`ParseIntPipe`).** Valida y transforma el parámetro justo antes del método, así el servicio solo recibe números. No se usa un guard porque no se trata de permisos, ni un filter porque este no evita que el dato inválido llegue al servicio.
+
+**Recurso inexistente → excepción del servicio y filter.** El servicio lanza `NotFoundException`, porque solo él sabe, tras consultar la base de datos, que el recurso no existe; el filter traduce la excepción a una respuesta uniforme. No se usa un pipe, porque comprobar la existencia es una regla de negocio y no una validación del formato del dato.
+
+**Operación lenta → interceptor (`TimingInterceptor`).** Envuelve el método del controlador, por lo que puede medir antes y después sin tocar la lógica. No se usa un guard ni un pipe, que actúan antes de la ejecución y no pueden medir su duración, y no se mide dentro del servicio para no repetir código en cada operación.
+
+### 9. Archivos relacionados con la implementación
+
+- `src/common/middleware/request-logger.middleware.ts`: registro seguro de solicitudes.
+- `src/common/filters/http-error.filter.ts`: respuesta de error uniforme.
+- `src/common/interceptors/timing.interceptor.ts`: tiempo de respuesta.
+- `src/app.module.ts`: registro global de los componentes.
+- `src/courses/courses.controller.ts` y `src/enrollments/enrollments.controller.ts`: `ParseIntPipe` en los parámetros numéricos.
+- Pruebas: `*.spec.ts` de los tres componentes y actualización de los specs de los controladores.
+
+### 10. Alcance de la Sesión 21
+
+Esta etapa incorpora:
+
+- Registro centralizado de solicitudes sin datos sensibles.
+- Respuestas de error con una forma coherente y sin detalles internos en los errores inesperados.
+- Medición del tiempo de respuesta.
+- Validación de parámetros numéricos con `ParseIntPipe`.
+
+**Fuera del alcance de la Sesión 21:** la refactorización en capas (casos de uso, puertos y adaptadores) se implementa en la [Sesión 22](#semana-11-casos-de-uso-repositorios-y-adaptadores-sesión-22). Con el filter, las respuestas de error incluyen ahora `error`, `path`, `timestamp` y `requestId` además de `statusCode` y `message`; las evidencias de semanas anteriores muestran el formato previo.
+
+## Semana 11: casos de uso, repositorios y adaptadores (Sesión 22)
+
+Período de trabajo: Semana 11 (9 al 15 de noviembre de 2026), Sesión 22, Avance de la Etapa 3.
+
+**Resultado de aprendizaje:** separar una regla de negocio de HTTP y de TypeORM para que sea comprensible, reutilizable y comprobable con pruebas.
+
+### 1. El problema
+
+Cuando un servicio llama directamente al repositorio de TypeORM, termina acumulando autorización, reglas, consultas y detalles de infraestructura. El problema no es TypeORM: aparece cuando una regla importante no se puede entender ni probar sin levantar HTTP y PostgreSQL.
+
+La operación elegida es **actualizar un curso** (`PATCH /courses/:id`), porque contiene una regla de negocio real: solo el administrador o el docente propietario puede modificarlo.
+
+### 2. Arquitectura en capas aplicada a CourseHub
+
+```text
+HTTP  →  CoursesController              ← conoce HTTP (rutas, guards, DTO)
+              ↓
+         UpdateCourseUseCase            ← regla de negocio (propiedad)
+              ↓
+         CourseRepository (puerto)      ← contrato que necesita la regla
+              ↓
+         TypeOrmCourseRepository        ← adaptador técnico (TypeORM)
+              ↓
+         PostgreSQL
+```
+
+| Capa | Archivo | Conoce | No conoce |
+|---|---|---|---|
+| HTTP | `src/courses/courses.controller.ts` | Rutas, guards, DTO y `req.user` | Reglas de negocio y TypeORM |
+| Regla de negocio | `src/courses/use-cases/update-course.use-case.ts` | Quién puede modificar un curso | HTTP y TypeORM |
+| Puerto | `src/courses/domain/course.repository.ts` | Qué necesita la regla (`findById` y `save`) | Cómo se almacena |
+| Adaptador | `src/courses/infrastructure/typeorm-course.repository.ts` | TypeORM | La regla de negocio |
+
+### 3. Puerto
+
+```typescript
+export const COURSE_REPOSITORY = Symbol('COURSE_REPOSITORY');
+
+export interface CourseRepository {
+  findById(id: number): Promise<Course | null>;
+  save(course: Course): Promise<Course>;
+}
+```
+
+El contrato es pequeño porque el caso de uso solo necesita encontrar y guardar. Las interfaces de TypeScript no existen en tiempo de ejecución; por eso se usa un `Symbol` como token de inyección.
+
+### 4. Caso de uso
+
+`UpdateCourseUseCase` recibe el repositorio mediante `@Inject(COURSE_REPOSITORY)` y concentra la decisión:
+
+```typescript
+const course = await this.courses.findById(id);
+if (!course) throw new NotFoundException(`Course ${id} not found`);
+
+const isAdmin = actor.role === UserRole.ADMIN;
+const isOwner = course.createdByUserId === actor.id;
+if (!isAdmin && !isOwner) {
+  throw new ForbiddenException('No tienes permisos para modificar este curso');
+}
+
+Object.assign(course, changes);
+return this.courses.save(course);
+```
+
+La autorización de propiedad permanece junto a la regla de negocio. El propietario se toma de `actor` (la identidad autenticada), nunca del cuerpo de la solicitud.
+
+### 5. Adaptador TypeORM
+
+`TypeOrmCourseRepository` implementa `CourseRepository` y traduce el contrato a la biblioteca (`findById` → `findOneBy` y `save` → `save`). Si el almacenamiento cambia, se modifica esta clase y no los controladores ni las reglas.
+
+### 6. Conexión con inyección de dependencias
+
+En `src/courses/courses.module.ts`:
+
+```typescript
+providers: [
+  CoursesService,
+  UpdateCourseUseCase,
+  { provide: COURSE_REPOSITORY, useClass: TypeOrmCourseRepository },
+],
+```
+
+`CoursesController` inyecta `UpdateCourseUseCase` y el método `update` se limita a delegar: `return this.updateCourseUseCase.execute(id, body, req.user)`. `CoursesService` conserva las consultas, la creación y la eliminación; ya no contiene `update`.
+
+### 7. El contrato HTTP no cambia
+
+La refactorización no altera la API: la ruta, los guards, los códigos y los mensajes siguen igual.
+
+| Caso | Respuesta |
+|---|---|
+| Docente propietario o administrador | `200 OK` con el curso actualizado |
+| `id` no numérico (`/courses/abc`) | `400 Bad Request` (`ParseIntPipe`) |
+| Curso inexistente | `404 Not Found` — `Course <id> not found` |
+| Docente que no es propietario | `403 Forbidden` — `No tienes permisos para modificar este curso` |
+| Sin token | `401 Unauthorized` (`JwtAuthGuard`) |
+| Estudiante | `403 Forbidden` (`RolesGuard`) |
+
+### 8. Pruebas automatizadas
+
+- `update-course.use-case.spec.ts`: prueba la regla con un **repositorio falso en memoria**, sin HTTP, sin TypeORM y sin PostgreSQL (propietario, administrador, docente ajeno, curso inexistente y propietario que no cambia).
+- `typeorm-course.repository.spec.ts`: comprueba que el adaptador traduce `findById` y `save` a TypeORM.
+- `courses.controller.spec.ts`: comprueba que el controlador delega en el caso de uso.
+- `courses.service.spec.ts`: conserva las pruebas de consulta, creación y búsqueda; las de actualización se movieron al caso de uso.
+
+### 9. Pruebas y evidencias de la Sesión 22 y del Avance de la Semana 11
+
+Las capturas se guardan en:
+
+```text
+evidencias/actuacion13/
+```
+
+| Código | Prueba | Resultado esperado | Archivo en `evidencias/actuacion13/` |
+|---|---|---|---|
+| E01 | `npm run build` y `npm run test` | Compilación correcta y todas las pruebas en verde, incluidas las del caso de uso y del adaptador | `1. Compilación y pruebas arriba.png` y `1. Compilación y pruebas abajo.png` |
+| E02 | Estructura del módulo `courses` | Carpetas `domain`, `use-cases` e `infrastructure` | `2. Estructura del módulo courses.png` |
+| E03 | Código de las capas | Puerto, caso de uso, adaptador, registro en el módulo y controlador | `3. Puerto CourseRepository.png`, `3. UpdateCourseUseCase.png`, `3. TypeOrmCourseRepository.png`, `3. Registro en courses.module.png` y `3. CoursesController delega en el caso de uso.png` |
+| E04 | Solicitud correcta: `PATCH /courses/6` con el docente propietario (ID 2) | `200 OK` | `4. Solicitud correcta 200.png` |
+| E05 | Identificador inválido: `PATCH /courses/abc` | `400 Bad Request` | `5. Identificador inválido 400.png` |
+| E06 | Recurso inexistente: `PATCH /courses/999999` con el administrador | `404 Not Found` | `6. Recurso inexistente 404.png` |
+| E07 | Solicitud prohibida: `PATCH /courses/6` con el docente no propietario (ID 4) | `403 Forbidden` | `7. Solicitud prohibida 403.png` |
+| E08 | Log de la API durante las cuatro solicitudes | Una línea por solicitud con `requestId`, estado `200`, `400`, `404` y `403`; sin tokens | `8. Log de solicitudes.png` |
+| E09 | Pruebas del caso de uso por separado | Se ejecutan sin base de datos | `9. Pruebas del caso de uso.png` |
+| E10 | README | Secciones de la Sesión 22 y respuesta de cierre | `10. README Sesión 22.png` |
+
+Las columnas de resultado indican lo esperado; cada captura debe mostrar el resultado real. Antes de entregar, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### 10. Pregunta de cierre
+
+**¿Qué clase cambiaría si se reemplaza TypeORM y cuál si cambia la regla «solo el propietario puede editar»?**
+
+Si se reemplaza TypeORM, cambia **`TypeOrmCourseRepository`** (el adaptador): se escribe otra implementación de `CourseRepository` y se cambia el `useClass` del módulo; el caso de uso y el controlador no se tocan. Si cambia la regla de propiedad, cambia **`UpdateCourseUseCase`**: el adaptador y el controlador siguen igual. Son clases distintas, así que la separación cumple su propósito.
+
+### 11. SOLID en la práctica
+
+| Principio | Cómo se aplica |
+|---|---|
+| Responsabilidad única | El controlador atiende HTTP, el caso de uso decide y el adaptador persiste; cada clase cambia por una sola razón |
+| Abierto/cerrado | Se puede añadir otra implementación de `CourseRepository` sin modificar el caso de uso |
+| Sustitución | El repositorio falso de las pruebas reemplaza al adaptador de TypeORM sin que el caso de uso lo note |
+| Segregación de interfaces | El puerto solo declara `findById` y `save`, que es lo que el caso de uso necesita |
+| Inversión de dependencias | La regla depende del contrato `CourseRepository` y no de TypeORM |
+
+### 12. Archivos relacionados con la implementación
+
+- `src/courses/domain/course.repository.ts`: puerto y token de inyección.
+- `src/courses/use-cases/update-course.use-case.ts`: regla de negocio.
+- `src/courses/infrastructure/typeorm-course.repository.ts`: adaptador TypeORM.
+- `src/courses/courses.module.ts`: registro con `provide` y `useClass`.
+- `src/courses/courses.controller.ts`: delegación en el caso de uso.
+- `src/courses/courses.service.ts`: sin el método `update`.
+- Pruebas: `update-course.use-case.spec.ts`, `typeorm-course.repository.spec.ts` y actualización de `courses.controller.spec.ts` y `courses.service.spec.ts`.
+
+### 13. Alcance de la Sesión 22
+
+Esta etapa incorpora:
+
+- Un caso de uso separado del controlador para la actualización de cursos.
+- Un contrato de repositorio pequeño y un adaptador TypeORM.
+- La autorización de propiedad dentro de la regla de negocio.
+- Pruebas de la regla sin base de datos.
+
+**Fuera del alcance:** aplicar el mismo patrón al resto de operaciones y módulos. Se aplicó a una operación representativa; las demás siguen en `CoursesService`. Las pruebas unitarias en profundidad corresponden a la Semana 12.
+
+## Avance de Etapa 3 — Semana 11: arquitectura mantenible y comportamiento transversal
+
+Este avance reúne las Sesiones 21 y 22.
+
+| Requisito del avance | Estado | Dónde está |
+|---|---|---|
+| Middleware de registro sin secretos ni cuerpos sensibles | Cumplido | `src/common/middleware/request-logger.middleware.ts` |
+| Errores con forma consistente y sin trazas internas | Cumplido | `src/common/filters/http-error.filter.ts` |
+| Un módulo de negocio con un caso de uso separado del controlador | Cumplido | `UpdateCourseUseCase` en el módulo `courses` |
+| Contrato de repositorio pequeño y adaptador TypeORM | Cumplido | `CourseRepository` y `TypeOrmCourseRepository` |
+| La autorización de propiedad junto a la regla de negocio | Cumplido | `UpdateCourseUseCase` |
+
+### Demostración (hasta ocho minutos)
+
+Sobre `PATCH /courses/:id`:
+
+1. **Solicitud correcta:** docente propietario (ID 2) sobre el curso 6 → `200`.
+2. **Identificador inválido:** `/courses/abc` → `400`, rechazado por `ParseIntPipe` antes de llegar al caso de uso.
+3. **Recurso inexistente:** `/courses/999999` con el administrador → `404`, lanzado por el caso de uso.
+4. **Solicitud prohibida:** docente no propietario (ID 4) sobre el curso 6 → `403`, decidido por la regla de propiedad.
+
+Después, se señala en el código dónde vive cada responsabilidad:
+
+| Responsabilidad | Dónde vive |
+|---|---|
+| HTTP (ruta, guards, DTO, `ParseIntPipe`) | `courses.controller.ts` |
+| Regla de negocio (propiedad) | `update-course.use-case.ts` |
+| Persistencia (TypeORM) | `typeorm-course.repository.ts` |
+| Registro, formato de errores y tiempo de respuesta | `src/common/` (aplicados una sola vez, de forma global) |
+
+### Criterio de éxito
+
+La regla de propiedad se lee y se prueba sin conocer rutas ni TypeORM (el repositorio falso del test lo demuestra), mientras los componentes transversales se aplican una sola vez mediante `app.module.ts`.
+
 ## Modelo de datos
 
 El modelo académico principal relaciona tres entidades:
@@ -2451,6 +2818,46 @@ Las evidencias documentan:
 
 Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
 
+### Evidencias de la Semana 11 — Sesión 21
+
+Las capturas de los componentes transversales se encuentran en:
+
+```text
+evidencias/actuacion12/
+```
+
+El detalle de cada archivo está en la sección [Semana 11, Sesión 21, apartado 7](#7-pruebas-y-evidencias-de-la-sesión-21).
+
+Las evidencias documentan:
+
+- Compilación correcta y pruebas automatizadas del middleware, el filter y el interceptor.
+- Código de los componentes y su registro global.
+- Errores `400` (pipe y `ValidationPipe`), `404`, `401` y `500` con la misma forma de respuesta.
+- Error inesperado sin traza ni SQL en la respuesta, con la traza solo en el log interno.
+- Registro de solicitudes y encabezado `X-Response-Time`.
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### Evidencias de la Semana 11 — Sesión 22 y Avance de Etapa 3
+
+Las capturas de la arquitectura en capas y de la demostración del avance se encuentran en:
+
+```text
+evidencias/actuacion13/
+```
+
+El detalle de cada archivo está en la sección [Semana 11, Sesión 22, apartado 9](#9-pruebas-y-evidencias-de-la-sesión-22-y-del-avance-de-la-semana-11).
+
+Las evidencias documentan:
+
+- Compilación correcta y pruebas automatizadas del caso de uso y del adaptador.
+- Estructura del módulo `courses` y código de cada capa.
+- Las cuatro solicitudes de la demostración (`200`, `400`, `404` y `403`) sobre `PATCH /courses/:id`.
+- El log de solicitudes de esas cuatro peticiones.
+- Las pruebas de la regla de negocio con un repositorio falso, sin base de datos.
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -2506,6 +2913,12 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - CORS con origen permitido y con origen no permitido.
 - Limitación de solicitudes en `POST /auth/login` (`429` en el sexto intento dentro de un minuto).
 - Verificación de que `GET /auth/me` sigue exigiendo JWT con CORS habilitado.
+- Rechazo de un `id` no numérico con `ParseIntPipe` (`400`).
+- Respuestas de error uniformes (`400`, `401`, `404` y `500`) mediante el filter global.
+- Ocultamiento de los detalles de un error inesperado en la respuesta, con registro interno.
+- Registro de solicitudes y medición del tiempo de respuesta sin exponer datos sensibles.
+- Actualización de cursos mediante un caso de uso con repositorio falso: propietario, administrador, docente ajeno (`403`) y curso inexistente (`404`).
+- Adaptador TypeORM que traduce `findById` y `save` al repositorio de la biblioteca.
 
 Los puntos deben considerarse pruebas realizadas solo cuando se hayan confirmado con las solicitudes HTTP, las consultas a la base de datos o el código correspondiente.
 
@@ -2720,7 +3133,9 @@ Las funcionalidades documentadas incluyen:
 - CORS restringido a los orígenes documentados.
 - Limitación de solicitudes (`@nestjs/throttler`): 20 por minuto de forma global y 5 por minuto en el inicio de sesión (`429`).
 - Documentación de HTTPS/TLS y de la gestión de secretos como requisito de producción.
-- Evidencias de las pruebas de registro, inicio de sesión, validaciones, protección de rutas, permisos por rol y controles de la Sesión 20.
+- Middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe`.
+- Caso de uso `UpdateCourseUseCase`, contrato `CourseRepository` y adaptador `TypeOrmCourseRepository`.
+- Evidencias de las pruebas de registro, inicio de sesión, validaciones, protección de rutas, permisos por rol y controles de las Sesiones 20, 21 y 22.
 
 En la Semana 6 se amplió `GET /students` para incorporar búsqueda textual, filtros combinables, paginación, ordenamiento controlado y validación de parámetros.
 
@@ -2801,6 +3216,38 @@ La demostración muestra una misma ruta (`PATCH /courses/6`) con cinco casos: si
 Las evidencias de esta etapa se guardan en `evidencias/actuacion11/`. El detalle está en la sección [Semana 10, Sesión 20](#semana-10-controles-de-seguridad-para-una-api-pública-sesión-20).
 
 Los refresh tokens, la revocación de tokens y la configuración de un certificado TLS local quedan fuera de este avance.
+
+### Avance de la Semana 11 — Sesión 21
+
+Se incorporaron los componentes transversales de NestJS para centralizar tareas que no pertenecen a los controladores.
+
+Las funcionalidades incorporadas incluyen:
+
+- `RequestLoggerMiddleware`: registro de cada solicitud con identificador, método, ruta, estado y duración, sin tokens, contraseñas, cuerpos ni cadenas de consulta.
+- `HttpErrorFilter` (global): respuesta de error uniforme; los errores inesperados devuelven un mensaje genérico y la traza queda solo en el log interno.
+- `TimingInterceptor` (global): tiempo de respuesta en el encabezado `X-Response-Time`.
+- `ParseIntPipe` en los parámetros numéricos de cursos y matrículas; el `ValidationPipe` global se mantiene.
+- Pruebas unitarias de los tres componentes y actualización de las pruebas de los controladores.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion12/`. El detalle está en la sección [Semana 11, Sesión 21](#semana-11-componentes-transversales-sesión-21).
+
+La refactorización en capas (casos de uso, puertos y adaptadores) se implementó en la Sesión 22 (véase el avance siguiente).
+
+### Avance de la Semana 11 — Sesión 22
+
+Se separó la regla de actualización de cursos de HTTP y de TypeORM.
+
+Las funcionalidades incorporadas incluyen:
+
+- `UpdateCourseUseCase`: concentra la regla «solo el administrador o el docente propietario puede modificar un curso».
+- `CourseRepository` (puerto) con solo `findById` y `save`, y `COURSE_REPOSITORY` como token de inyección.
+- `TypeOrmCourseRepository` (adaptador), conectado con `provide` y `useClass` en `CoursesModule`.
+- `CoursesController` delega la actualización en el caso de uso; el contrato HTTP no cambia.
+- Pruebas de la regla con un repositorio falso en memoria, sin base de datos.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion13/`. El detalle está en la sección [Semana 11, Sesión 22](#semana-11-casos-de-uso-repositorios-y-adaptadores-sesión-22) y en el [Avance de Etapa 3](#avance-de-etapa-3--semana-11-arquitectura-mantenible-y-comportamiento-transversal).
+
+Solo la operación de actualización de cursos se migró a este patrón; las demás operaciones continúan en sus servicios. Las pruebas unitarias en profundidad corresponden a la Semana 12.
 
 Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
 
