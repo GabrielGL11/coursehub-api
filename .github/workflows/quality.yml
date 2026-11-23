@@ -1,0 +1,81 @@
+name: quality
+
+# Se ejecuta con cada envío (push) y con cada solicitud de integración (pull request).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verificar (lint, pruebas y compilación)
+    runs-on: ubuntu-latest
+
+    # PostgreSQL desechable, exclusivo de esta ejecución. No es la base de desarrollo.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: coursehub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Variables solo de prueba: sin secretos reales ni credenciales de producción.
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: coursehub_test
+      JWT_SECRET: secreto-solo-para-ci-no-usar-en-produccion
+      JWT_EXPIRES_IN: 15m
+
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias (npm ci)
+        run: npm ci
+
+      - name: Análisis estático (lint)
+        run: npm run lint
+
+      - name: Pruebas unitarias (Jest)
+        run: npm test
+
+      - name: Pruebas e2e (Jest + Supertest)
+        run: npm run test:e2e
+
+      - name: Compilar
+        run: npm run build
+
+      # Señal informativa: no bloquea la integración. Revisar el resultado antes de actualizar paquetes.
+      - name: Auditoría de dependencias (npm audit)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+  dependency-review:
+    name: Revisión de dependencias (solo pull requests)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Revisar dependencias nuevas o actualizadas
+        uses: actions/dependency-review-action@v4

@@ -15,11 +15,11 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "oxlint src/ test/",
-    "test": "jest --runInBand",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage --runInBand",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
+    "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
+    "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --runInBand",
     "test:debug": "node --experimental-vm-modules --inspect-brk ./node_modules/jest/bin/jest.js --runInBand",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./jest.config.e2e.ts --runInBand"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
@@ -30,7 +30,7 @@
     "@nestjs/observe": "^0.1.8",
     "@nestjs/passport": "^12.0.0",
     "@nestjs/platform-express": "^12.0.1",
-    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/throttler": "^6.8.0",
     "@nestjs/typeorm": "^12.0.2",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
