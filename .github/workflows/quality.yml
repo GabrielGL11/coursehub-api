@@ -49,6 +49,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Se fija la misma versión de npm utilizada para validar el lockfile localmente.
+      - name: Configurar npm 10.9.4
+        run: npm install --global npm@10.9.4
+
+      - name: Verificar versión de npm
+        run: npm --version
+
       - name: Instalar dependencias (npm ci)
         run: npm ci
 
