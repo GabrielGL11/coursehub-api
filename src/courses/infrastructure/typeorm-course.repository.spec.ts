@@ -1,20 +1,24 @@
-import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
+import type { Repository } from 'typeorm';
 import { TypeOrmCourseRepository } from './typeorm-course.repository.js';
+import type { Course } from '../entities/course.entity.js';
 
 describe('TypeOrmCourseRepository', () => {
   const typeOrmMock = {
-    findOneBy: vi.fn(),
-    save: vi.fn(),
+    findOneBy: jest.fn<(where: unknown) => Promise<Course | null>>(),
+    save: jest.fn<(entity: Course) => Promise<Course>>(),
   };
   let adapter: TypeOrmCourseRepository;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    adapter = new TypeOrmCourseRepository(typeOrmMock as any);
+    jest.clearAllMocks();
+    adapter = new TypeOrmCourseRepository(
+      typeOrmMock as unknown as Repository<Course>,
+    );
   });
 
   it('debe traducir findById a findOneBy de TypeORM', async () => {
-    const curso = { id: 6, title: 'Curso', level: 'beginner' };
+    const curso = { id: 6, title: 'Curso', level: 'beginner' } as Course;
     typeOrmMock.findOneBy.mockResolvedValue(curso);
 
     await expect(adapter.findById(6)).resolves.toEqual(curso);
@@ -28,10 +32,12 @@ describe('TypeOrmCourseRepository', () => {
   });
 
   it('debe traducir save a save de TypeORM', async () => {
-    const curso = { id: 6, title: 'Curso', level: 'beginner' } as any;
+    const curso = { id: 6, title: 'Curso', level: 'beginner' } as Course;
     typeOrmMock.save.mockResolvedValue(curso);
 
     await expect(adapter.save(curso)).resolves.toEqual(curso);
     expect(typeOrmMock.save).toHaveBeenCalledWith(curso);
   });
 });
+
+

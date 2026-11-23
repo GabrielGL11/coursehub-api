@@ -1,4 +1,4 @@
-﻿import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -8,15 +8,15 @@ import { Student } from './entities/student.entity.js';
 describe('StudentsService', () => {
   let service: StudentsService;
   const repositoryMock = {
-    findOneBy: vi.fn(),
-    findAndCount: vi.fn(),
-    createQueryBuilder: vi.fn(),
-    create: vi.fn(),
-    save: vi.fn(),
-    remove: vi.fn(),
+    findOneBy: jest.fn<(where: unknown) => Promise<Student | null>>(),
+    findAndCount: jest.fn(),
+    createQueryBuilder: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    remove: jest.fn(),
   };
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StudentsService,
@@ -55,7 +55,7 @@ describe('StudentsService', () => {
     repositoryMock.findOneBy.mockResolvedValue({
       id: 1,
       email: 'carlos@example.com',
-    });
+    } as Student);
     await expect(
       service.create({
         name: 'Carlos Mendoza',
@@ -69,3 +69,5 @@ describe('StudentsService', () => {
     expect(repositoryMock.save).not.toHaveBeenCalled();
   });
 });
+
+

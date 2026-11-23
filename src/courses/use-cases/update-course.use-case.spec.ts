@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+﻿import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UpdateCourseUseCase } from './update-course.use-case.js';
 import type { CourseRepository } from '../domain/course.repository.js';
 import type { Course } from '../entities/course.entity.js';
@@ -14,10 +11,12 @@ import type { AuthenticatedUser } from '../../auth/types/jwt-payload.type.js';
  */
 class InMemoryCourseRepository implements CourseRepository {
   saveCalls = 0;
+  findByIdCalls: number[] = [];
 
   constructor(private readonly courses: Course[]) {}
 
   async findById(id: number) {
+    this.findByIdCalls.push(id);
     const course = this.courses.find((c) => c.id === id);
     return course ? { ...course } : null;
   }
@@ -25,6 +24,11 @@ class InMemoryCourseRepository implements CourseRepository {
   async save(course: Course) {
     this.saveCalls++;
     const index = this.courses.findIndex((c) => c.id === course.id);
+
+    if (index === -1) {
+      throw new NotFoundException(`Course ${course.id} not found`);
+    }
+
     this.courses[index] = { ...course };
     return { ...course };
   }
@@ -39,11 +43,13 @@ describe('UpdateCourseUseCase', () => {
     email: 'docente2@example.com',
     role: UserRole.TEACHER,
   };
+
   const docenteAjeno: AuthenticatedUser = {
     id: 4,
     email: 'docente4@example.com',
     role: UserRole.TEACHER,
   };
+
   const administrador: AuthenticatedUser = {
     id: 3,
     email: 'admin@example.com',
@@ -52,8 +58,14 @@ describe('UpdateCourseUseCase', () => {
 
   beforeEach(() => {
     repository = new InMemoryCourseRepository([
-      { id: 6, title: 'Curso original', level: 'beginner', createdByUserId: 2 },
+      {
+        id: 6,
+        title: 'Curso original',
+        level: 'beginner',
+        createdByUserId: 2,
+      },
     ]);
+
     useCase = new UpdateCourseUseCase(repository);
   });
 
@@ -68,6 +80,16 @@ describe('UpdateCourseUseCase', () => {
     expect(repository.saveCalls).toBe(1);
   });
 
+  it('debe buscar el curso utilizando el identificador recibido', async () => {
+    await useCase.execute(
+      6,
+      { title: 'Curso actualizado' },
+      docentePropietario,
+    );
+
+    expect(repository.findByIdCalls).toEqual([6]);
+  });
+
   it('debe permitir que el administrador modifique el curso de otro usuario', async () => {
     const resultado = await useCase.execute(
       6,
@@ -77,6 +99,7 @@ describe('UpdateCourseUseCase', () => {
 
     expect(resultado.title).toBe('Editado por admin');
     expect(resultado.createdByUserId).toBe(2);
+    expect(repository.saveCalls).toBe(1);
   });
 
   it('debe rechazar que un docente modifique el curso de otro docente', async () => {
@@ -90,11 +113,9 @@ describe('UpdateCourseUseCase', () => {
   it('debe lanzar NotFoundException si el curso no existe', async () => {
     await expect(
       useCase.execute(999, { title: 'No existe' }, administrador),
-    ).rejects.toThrow('Course 999 not found');
-
-    await expect(
-      useCase.execute(999, { title: 'No existe' }, administrador),
     ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(repository.findByIdCalls).toEqual([999]);
     expect(repository.saveCalls).toBe(0);
   });
 
@@ -109,3 +130,4 @@ describe('UpdateCourseUseCase', () => {
     expect(resultado.createdByUserId).toBe(2);
   });
 });
+

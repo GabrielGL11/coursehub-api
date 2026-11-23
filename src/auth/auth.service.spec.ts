@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -6,19 +6,20 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
 import { UserRole } from '../users/user-role.enum.js';
+import type { User } from '../users/entities/user.entity.js';
 
 describe('AuthService', () => {
   let service: AuthService;
   let passwordHash: string;
 
   const usersServiceMock = {
-    findByEmail: vi.fn(),
-    findByEmailWithPassword: vi.fn(),
-    create: vi.fn(),
+    findByEmail: jest.fn<UsersService['findByEmail']>(),
+    findByEmailWithPassword: jest.fn<UsersService['findByEmailWithPassword']>(),
+    create: jest.fn<UsersService['create']>(),
   };
 
   const jwtServiceMock = {
-    signAsync: vi.fn(),
+    signAsync: jest.fn<JwtService['signAsync']>(),
   };
 
   beforeAll(async () => {
@@ -27,7 +28,7 @@ describe('AuthService', () => {
   });
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -77,7 +78,7 @@ describe('AuthService', () => {
       email: 'docente@example.com',
       passwordHash,
       role: UserRole.TEACHER,
-    });
+    } as User);
 
     await expect(
       service.login({ email: 'docente@example.com', password: 'otra-clave' }),
@@ -118,7 +119,7 @@ describe('AuthService', () => {
   });
 
   it('debe rechazar el registro de un correo duplicado', async () => {
-    usersServiceMock.findByEmail.mockResolvedValue({ id: 1 });
+    usersServiceMock.findByEmail.mockResolvedValue({ id: 1 } as User);
 
     await expect(
       service.register({
@@ -129,3 +130,4 @@ describe('AuthService', () => {
     expect(usersServiceMock.create).not.toHaveBeenCalled();
   });
 });
+

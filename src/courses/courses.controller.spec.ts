@@ -1,44 +1,63 @@
-﻿import { vi } from 'vitest';
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, type TestingModule } from '@nestjs/testing';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { CoursesController } from './courses.controller.js';
 import { CoursesService } from './courses.service.js';
 import { UpdateCourseUseCase } from './use-cases/update-course.use-case.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
-import { UserRole } from '../users/user-role.enum.js';
+import type { CoursesQueryDto } from './dto/courses-query.dto.js';
+import type { CreateCourseDto } from './dto/create-course.dto.js';
+import type { UpdateCourseDto } from './dto/update-course.dto.js';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type.js';
+import { UserRole } from '../users/user-role.enum.js';
 
 describe('CoursesController', () => {
   let controller: CoursesController;
 
+  // Mock del servicio de cursos con tipos explícitos para Jest.
   const coursesServiceMock = {
-    findAll: vi.fn(),
-    findOne: vi.fn(),
-    create: vi.fn(),
-    remove: vi.fn(),
+    findAll: jest.fn<(query: CoursesQueryDto) => Promise<any>>(),
+    findOne: jest.fn<(id: number) => Promise<any>>(),
+    create: jest.fn<
+      (dto: CreateCourseDto, user: AuthenticatedUser) => Promise<any>
+    >(),
+    remove: jest.fn<(id: number) => Promise<void>>(),
   };
 
+  // Mock del caso de uso de actualización.
   const updateCourseUseCaseMock = {
-    execute: vi.fn(),
+    execute: jest.fn<
+      (
+        id: number,
+        dto: UpdateCourseDto,
+        user: AuthenticatedUser,
+      ) => Promise<any>
+    >(),
   };
 
-  const docente: AuthenticatedUser = {
-    id: 2,
-    email: 'docente2@example.com',
+  const authenticatedUser = {
+    id: 7,
+    email: 'docente@example.com',
     role: UserRole.TEACHER,
-  };
+  } as AuthenticatedUser;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.resetAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CoursesController],
       providers: [
-        { provide: CoursesService, useValue: coursesServiceMock },
-        { provide: UpdateCourseUseCase, useValue: updateCourseUseCaseMock },
+        {
+          provide: CoursesService,
+          useValue: coursesServiceMock,
+        },
+        {
+          provide: UpdateCourseUseCase,
+          useValue: updateCourseUseCaseMock,
+        },
       ],
     })
-      // Los guards se prueban por separado; aquí se reemplazan para probar el controlador.
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard)
@@ -52,58 +71,126 @@ describe('CoursesController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('debe delegar la consulta de cursos al servicio', async () => {
-    const resultado = {
-      items: [{ id: 1, title: 'NestJS desde cero', level: 'beginner' }],
-      meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
-    };
-    coursesServiceMock.findAll.mockResolvedValue(resultado);
+  describe('findAll', () => {
+    it('debe delegar la consulta al servicio', async () => {
+      const query = {
+        page: 1,
+        limit: 10,
+      } as unknown as CoursesQueryDto;
 
-    const query = { page: 1, limit: 10, sortBy: 'id', order: 'ASC' };
+      const expected = { items: [], meta: {} };
 
-    await expect(controller.findAll(query as any)).resolves.toEqual(resultado);
-    expect(coursesServiceMock.findAll).toHaveBeenCalledWith(query);
+      coursesServiceMock.findAll.mockResolvedValue(expected);
+
+      await expect(controller.findAll(query)).resolves.toEqual(expected);
+
+      expect(coursesServiceMock.findAll).toHaveBeenCalledWith(query);
+      expect(coursesServiceMock.findAll).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('debe delegar la búsqueda de un curso por ID', async () => {
-    const curso = { id: 1, title: 'NestJS desde cero', level: 'beginner' };
-    coursesServiceMock.findOne.mockResolvedValue(curso);
+  describe('findOne', () => {
+    it('debe delegar el identificador al servicio', async () => {
+      const courseId = 5;
+      const expected = { id: courseId, title: 'NestJS' };
 
-    await expect(controller.findOne(1)).resolves.toEqual(curso);
-    expect(coursesServiceMock.findOne).toHaveBeenCalledWith(1);
+      coursesServiceMock.findOne.mockResolvedValue(expected);
+
+      await expect(controller.findOne(courseId)).resolves.toEqual(expected);
+
+      expect(coursesServiceMock.findOne).toHaveBeenCalledWith(courseId);
+    });
   });
 
-  it('debe crear un curso pasando el usuario autenticado al servicio', async () => {
-    const dto = { title: 'Curso nuevo', level: 'beginner' };
-    const creado = { id: 8, ...dto, createdByUserId: 2 };
-    coursesServiceMock.create.mockResolvedValue(creado);
+  describe('create', () => {
+    it('debe delegar el DTO y el usuario autenticado al servicio', async () => {
+      const dto = {
+        title: 'Curso de prueba',
+      } as unknown as CreateCourseDto;
 
-    await expect(controller.create(dto, { user: docente })).resolves.toEqual(
-      creado,
-    );
-    expect(coursesServiceMock.create).toHaveBeenCalledWith(dto, docente);
+      const expected = { id: 10, title: 'Curso de prueba' };
+
+      coursesServiceMock.create.mockResolvedValue(expected);
+
+      await expect(
+        controller.create(dto, { user: authenticatedUser }),
+      ).resolves.toEqual(expected);
+
+      expect(coursesServiceMock.create).toHaveBeenCalledWith(
+        dto,
+        authenticatedUser,
+      );
+
+      expect(coursesServiceMock.create).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('debe delegar la actualización al caso de uso con el ID numérico y el usuario autenticado', async () => {
-    const body = { title: 'Título nuevo' };
-    updateCourseUseCaseMock.execute.mockResolvedValue({ id: 6, ...body });
+  describe('update', () => {
+    it('debe delegar el ID, el DTO y el usuario autenticado al caso de uso', async () => {
+      const courseId = 10;
 
-    await expect(
-      controller.update(6, body, { user: docente }),
-    ).resolves.toEqual({ id: 6, ...body });
+      const dto = {
+        title: 'Curso actualizado',
+      } as unknown as UpdateCourseDto;
 
-    expect(updateCourseUseCaseMock.execute).toHaveBeenCalledWith(
-      6,
-      body,
-      docente,
-    );
+      const expected = { id: courseId, title: 'Curso actualizado' };
+
+      updateCourseUseCaseMock.execute.mockResolvedValue(expected);
+
+      await expect(
+        controller.update(courseId, dto, { user: authenticatedUser }),
+      ).resolves.toEqual(expected);
+
+      expect(updateCourseUseCaseMock.execute).toHaveBeenCalledWith(
+        courseId,
+        dto,
+        authenticatedUser,
+      );
+
+      expect(updateCourseUseCaseMock.execute).toHaveBeenCalledTimes(1);
+    });
+
+    it('debe propagar el error cuando el usuario no tiene autorización', async () => {
+      const error = new ForbiddenException(
+        'No tienes permisos para modificar este curso',
+      );
+
+      updateCourseUseCaseMock.execute.mockRejectedValue(error);
+
+      await expect(
+        controller.update(
+          10,
+          {} as UpdateCourseDto,
+          { user: authenticatedUser },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('debe propagar el error cuando el curso no existe', async () => {
+      const error = new NotFoundException('Course 10 not found');
+
+      updateCourseUseCaseMock.execute.mockRejectedValue(error);
+
+      await expect(
+        controller.update(
+          10,
+          {} as UpdateCourseDto,
+          { user: authenticatedUser },
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 
-  it('debe eliminar un curso convirtiendo el ID a número', async () => {
-    coursesServiceMock.remove.mockResolvedValue({ id: 7 });
+  describe('remove', () => {
+    it('debe delegar el identificador al servicio', async () => {
+      const courseId = 15;
 
-    await controller.remove(7);
+      coursesServiceMock.remove.mockResolvedValue(undefined);
 
-    expect(coursesServiceMock.remove).toHaveBeenCalledWith(7);
+      await expect(controller.remove(courseId)).resolves.toBeUndefined();
+
+      expect(coursesServiceMock.remove).toHaveBeenCalledWith(courseId);
+      expect(coursesServiceMock.remove).toHaveBeenCalledTimes(1);
+    });
   });
 });

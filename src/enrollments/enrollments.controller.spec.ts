@@ -1,4 +1,4 @@
-﻿import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EnrollmentsController } from './enrollments.controller.js';
 import { EnrollmentsService } from './enrollments.service.js';
@@ -8,15 +8,15 @@ describe('EnrollmentsController', () => {
   let controller: EnrollmentsController;
 
   const enrollmentsServiceMock = {
-    create: vi.fn(),
-    findAll: vi.fn(),
-    findByStudent: vi.fn(),
-    findByCourse: vi.fn(),
-    remove: vi.fn(),
+    create: jest.fn<EnrollmentsService['create']>(),
+    findAll: jest.fn<EnrollmentsService['findAll']>(),
+    findByStudent: jest.fn<EnrollmentsService['findByStudent']>(),
+    findByCourse: jest.fn<EnrollmentsService['findByCourse']>(),
+    remove: jest.fn<EnrollmentsService['remove']>(),
   };
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EnrollmentsController],
@@ -56,3 +56,4 @@ describe('EnrollmentsController', () => {
     expect(enrollmentsServiceMock.findByStudent).toHaveBeenCalledWith(3);
   });
 });
+

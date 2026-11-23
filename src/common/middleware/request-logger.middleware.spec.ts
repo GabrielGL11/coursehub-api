@@ -1,17 +1,17 @@
-import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import { Logger } from '@nestjs/common';
 import { RequestLoggerMiddleware } from './request-logger.middleware.js';
 
 describe('RequestLoggerMiddleware', () => {
   let middleware: RequestLoggerMiddleware;
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
     middleware = new RequestLoggerMiddleware();
-    logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => jest.restoreAllMocks());
 
   function ejecutar(headers: Record<string, string> = {}) {
     let onFinish: () => void = () => undefined;
@@ -23,12 +23,12 @@ describe('RequestLoggerMiddleware', () => {
     };
     const res = {
       statusCode: 200,
-      setHeader: vi.fn(),
-      on: vi.fn((evento: string, cb: () => void) => {
+      setHeader: jest.fn(),
+      on: jest.fn((evento: string, cb: () => void) => {
         if (evento === 'finish') onFinish = cb;
       }),
     };
-    const next = vi.fn();
+    const next = jest.fn();
 
     middleware.use(req as any, res as any, next);
     onFinish();
@@ -66,3 +66,5 @@ describe('RequestLoggerMiddleware', () => {
     expect(texto).not.toContain('ana@example.com');
   });
 });
+
+

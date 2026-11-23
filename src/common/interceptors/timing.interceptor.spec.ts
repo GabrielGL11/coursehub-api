@@ -1,10 +1,10 @@
-import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import { lastValueFrom, of, throwError } from 'rxjs';
 import { TimingInterceptor } from './timing.interceptor.js';
 
 describe('TimingInterceptor', () => {
   const interceptor = new TimingInterceptor();
-  const setHeader = vi.fn();
+  const setHeader = jest.fn();
 
   const context = {
     switchToHttp: () => ({
@@ -13,7 +13,7 @@ describe('TimingInterceptor', () => {
     }),
   } as any;
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => jest.clearAllMocks());
 
   it('debe devolver el mismo resultado y añadir X-Response-Time', async () => {
     const resultado = { items: [] };
@@ -38,3 +38,5 @@ describe('TimingInterceptor', () => {
     expect(setHeader).not.toHaveBeenCalled();
   });
 });
+
+

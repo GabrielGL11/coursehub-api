@@ -1,22 +1,29 @@
-import { vi } from 'vitest';
-import { Test, TestingModule } from '@nestjs/testing';
-import { AuthController } from './auth.controller.js';
-import { AuthService } from './auth.service.js';
-import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import { UserRole } from '../users/user-role.enum.js';
+﻿
+import { jest } from '@jest/globals';
+import type { AuthService as AuthServiceType } from './auth.service.js';
+
+jest.unstable_mockModule('@nestjs/throttler', () => ({
+  Throttle: () => () => undefined,
+}));
+
+const { Test } = await import('@nestjs/testing');
+const { AuthController } = await import('./auth.controller.js');
+const { AuthService } = await import('./auth.service.js');
+const { JwtAuthGuard } = await import('./guards/jwt-auth.guard.js');
+const { UserRole } = await import('../users/user-role.enum.js');
 
 describe('AuthController', () => {
-  let controller: AuthController;
+  let controller: InstanceType<typeof AuthController>;
 
   const authServiceMock = {
-    register: vi.fn(),
-    login: vi.fn(),
+    register: jest.fn<AuthServiceType['register']>(),
+    login: jest.fn<AuthServiceType['login']>(),
   };
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
-    const module: TestingModule = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [{ provide: AuthService, useValue: authServiceMock }],
     })
@@ -24,7 +31,7 @@ describe('AuthController', () => {
       .useValue({ canActivate: () => true })
       .compile();
 
-    controller = module.get<AuthController>(AuthController);
+    controller = module.get(AuthController);
   });
 
   it('debe estar definido', () => {
@@ -33,7 +40,12 @@ describe('AuthController', () => {
 
   it('debe delegar el registro al servicio', async () => {
     const dto = { email: 'ana@example.com', password: 'ClaveSegura123' };
-    const respuesta = { id: 1, email: dto.email, role: UserRole.STUDENT };
+    const respuesta = {
+      id: 1,
+      email: dto.email,
+      role: UserRole.STUDENT,
+    } as Awaited<ReturnType<AuthServiceType['register']>>;
+
     authServiceMock.register.mockResolvedValue(respuesta);
 
     await expect(controller.register(dto as any)).resolves.toEqual(respuesta);
@@ -42,7 +54,11 @@ describe('AuthController', () => {
 
   it('debe delegar el inicio de sesión al servicio', async () => {
     const dto = { email: 'ana@example.com', password: 'ClaveSegura123' };
-    const respuesta = { accessToken: 'token-de-prueba', user: { id: 1 } };
+    const respuesta = {
+      accessToken: 'token-de-prueba',
+      user: { id: 1 },
+    } as Awaited<ReturnType<AuthServiceType['login']>>;
+
     authServiceMock.login.mockResolvedValue(respuesta);
 
     await expect(controller.login(dto as any)).resolves.toEqual(respuesta);

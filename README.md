@@ -1,4 +1,4 @@
-# Sistema de Gestión Académica — CourseHub API
+﻿# Sistema de Gestión Académica — CourseHub API
 
 <p align="center">
   <a href="https://nestjs.com/" target="blank">
@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); **Vitest se conserva únicamente para el flujo E2E existente** (`npm run test:e2e`).
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -24,6 +24,9 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Semana 10: controles de seguridad para una API pública (Sesión 20)](#semana-10-controles-de-seguridad-para-una-api-pública-sesión-20)
 - [Semana 11: componentes transversales (Sesión 21)](#semana-11-componentes-transversales-sesión-21)
 - [Semana 11: casos de uso, repositorios y adaptadores (Sesión 22)](#semana-11-casos-de-uso-repositorios-y-adaptadores-sesión-22)
+- [Semana 12: pruebas unitarias de reglas de negocio (Sesión 23)](#semana-12-pruebas-unitarias-de-reglas-de-negocio-sesión-23)
+- [Semana 12: controladores, cobertura y calidad de pruebas (Sesión 24)](#semana-12-controladores-cobertura-y-calidad-de-pruebas-sesión-24)
+- [Avance de Etapa 4 — Semana 12: pruebas unitarias que protegen reglas](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -58,6 +61,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **Guards, `Reflector` y `SetMetadata` de NestJS:** autorización por roles mediante `RolesGuard` y el decorador `@Roles()`.
 - **@nestjs/throttler:** limitación de la tasa de solicitudes (rate limiting) mediante `ThrottlerModule` y `ThrottlerGuard`.
 - **CORS de NestJS (`app.enableCors`):** restricción de los orígenes web que pueden leer las respuestas de la API desde un navegador.
+- **Jest, `ts-jest` y `@types/jest`:** pruebas unitarias en TypeScript (`npm test`) y cobertura (`npm run test:cov`).
+- **Vitest:** se conserva solo para el comando E2E existente; las pruebas unitarias ya no lo usan.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
@@ -106,6 +111,9 @@ Las principales funcionalidades incluyen:
 - Validación de parámetros numéricos mediante `ParseIntPipe` (`400` ante un `id` no numérico).
 - Caso de uso `UpdateCourseUseCase` con la regla de propiedad, separado del controlador y de TypeORM.
 - Contrato de repositorio pequeño (`CourseRepository`) y adaptador `TypeOrmCourseRepository`, conectados con `provide` y `useClass`.
+- Pruebas unitarias con Jest del caso de uso `UpdateCourseUseCase` con un repositorio simulado (éxito, recurso inexistente y rechazo por regla), con la forma Arrange - Act - Assert.
+- Pruebas del controlador de cursos (delegación del identificador, del DTO y de la identidad autenticada, y propagación de errores), de `RolesGuard` y de `CoursesService`.
+- Informe de cobertura con Jest (`npm run test:cov`) para localizar ramas sin ejercitar.
 
 ## Arquitectura
 
@@ -207,7 +215,8 @@ src/
 │   │   └── login.dto.ts
 │   ├── guards/
 │   │   ├── jwt-auth.guard.ts
-│   │   └── roles.guard.ts
+│   │   ├── roles.guard.ts
+│   │   └── roles.guard.spec.ts
 │   ├── strategies/
 │   │   └── jwt.strategy.ts
 │   ├── types/
@@ -283,7 +292,8 @@ evidencias/
 ├── actuacion10/
 ├── actuacion11/
 ├── actuacion12/
-└── actuacion13/
+├── actuacion13/
+└── actuacion14/
 
 .env
 .env.example
@@ -1859,6 +1869,360 @@ Después, se señala en el código dónde vive cada responsabilidad:
 
 La regla de propiedad se lee y se prueba sin conocer rutas ni TypeORM (el repositorio falso del test lo demuestra), mientras los componentes transversales se aplican una sola vez mediante `app.module.ts`.
 
+## Semana 12: pruebas unitarias de reglas de negocio (Sesión 23)
+
+Período de trabajo: Semana 12 (16 al 22 de noviembre de 2026), Sesión 23, Avance de la Etapa 4.
+
+**Resultado de aprendizaje:** crear pruebas unitarias para un caso de uso con un repositorio simulado, sin iniciar HTTP ni PostgreSQL.
+
+### 1. Qué protege una prueba unitaria
+
+Probar una ruta a mano es valioso, pero no escala: cada cambio obligaría a repetir decenas de escenarios. Una prueba unitaria protege una decisión pequeña: «un docente no edita un curso ajeno», «un curso inexistente produce `404`» o «un administrador sí puede actualizarlo». No demuestra que PostgreSQL o HTTP funcionen juntos; demuestra, de forma rápida y repetible, que una unidad cumple una regla concreta.
+
+### 2. Herramienta: Jest (migrada desde Vitest)
+
+El material del curso muestra los ejemplos con Jest. Este proyecto se generó con **Vitest** y las pruebas de la Semana 12 se escribieron primero con esa herramienta. Después se **migraron a Jest**, conservando la lógica de negocio y los casos de prueba. Desde la migración, `npm test` ejecuta las pruebas unitarias con Jest.
+
+**Qué incluyó la migración:**
+
+- Instalación de `jest`, `@types/jest` y `ts-jest`.
+- Configuración de Jest mediante `jest.config.ts`, que le indica cómo encontrar y ejecutar las pruebas; `ts-jest` compila los archivos TypeScript al ejecutarlas.
+- Creación de `tsconfig.spec.json`, la configuración de TypeScript usada para compilar y ejecutar las pruebas.
+- Adaptación de la configuración para trabajar con TypeScript y módulos ESM, y corrección de importaciones y de la compatibilidad de algunos tests con ESM.
+- Exclusión de `src/app.controller.spec.ts` del conjunto unitario de Jest, porque corresponde a una prueba de integración HTTP y no a una prueba unitaria.
+- Conservación de Vitest para el comando E2E existente: no se eliminaron sus dependencias ni su configuración (`vitest.config.e2e.ts`).
+- **No se modificó la lógica de negocio** (casos de uso, servicios, controladores, endpoints ni entidades): solo cambió la herramienta que ejecuta las pruebas.
+
+**Equivalencias aplicadas en las pruebas:**
+
+| Vitest (versión inicial) | Jest (versión actual) |
+|---|---|
+| `vi.fn()` | `jest.fn()` |
+| `vi.clearAllMocks()` / `vi.resetAllMocks()` | `jest.clearAllMocks()` / `jest.resetAllMocks()` |
+| `describe`, `it`, `expect` | Igual, con las funciones de Jest |
+
+Los matchers (`toBe`, `toEqual`, `toHaveBeenCalledWith`, `rejects.toThrow`, `not.toHaveBeenCalled`) y los dobles como `mockResolvedValue` se usan igual. También se conserva el enfoque **Arrange - Act - Assert** descrito a continuación.
+
+### 3. La forma Arrange - Act - Assert
+
+1. **Arrange:** preparar las entradas y las dependencias controladas.
+2. **Act:** ejecutar la unidad que se quiere comprobar.
+3. **Assert:** verificar el resultado, el error o la interacción esperada.
+
+Cada prueba tiene un propósito evidente y un nombre que explica la regla; cuando una falla, el equipo sabe qué comportamiento revisar.
+
+### 4. Repositorio simulado
+
+`src/courses/use-cases/update-course.use-case.spec.ts` sustituye al adaptador TypeORM por un **repositorio falso en memoria** que cumple el contrato `CourseRepository`, registra cuántas veces se llamó a `save` y qué identificadores se buscaron:
+
+```typescript
+class InMemoryCourseRepository implements CourseRepository {
+  saveCalls = 0;
+  findByIdCalls: number[] = [];
+
+  constructor(private readonly courses: Course[]) {}
+
+  async findById(id: number) {
+    this.findByIdCalls.push(id);
+    const course = this.courses.find((c) => c.id === id);
+    return course ? { ...course } : null;
+  }
+
+  async save(course: Course) {
+    this.saveCalls++;
+    // ... reemplaza el curso en el arreglo y lo devuelve
+  }
+}
+
+beforeEach(() => {
+  repository = new InMemoryCourseRepository([
+    { id: 6, title: 'Curso original', level: 'beginner', createdByUserId: 2 },
+  ]);
+  useCase = new UpdateCourseUseCase(repository);
+});
+```
+
+Gracias a la inversión de dependencias de la Sesión 22, el caso de uso recibe cualquier objeto que cumpla el contrato: en producción es `TypeOrmCourseRepository` y en la prueba es este repositorio en memoria. No abre conexiones ni depende de datos previos. (El controlador, en cambio, se prueba con dependencias simuladas con `jest.fn()`; véase la Sesión 24.)
+
+### 5. Casos probados
+
+| Grupo | Prueba | Qué comprueba |
+|---|---|---|
+| Permitido | Docente propietario modifica su curso | El resultado trae el título nuevo y `save` se llama una vez |
+| Permitido | Búsqueda con el identificador recibido | `findById` se llama con el `id` recibido |
+| Permitido | Administrador modifica el curso de otro usuario | La regla de administrador prevalece sobre la propiedad |
+| Permitido | El propietario original se conserva | `createdByUserId` no cambia al actualizar |
+| Rechazo | Docente que no es el propietario | `ForbiddenException` y `save` no se llama |
+| Rechazo | Curso inexistente | `NotFoundException` y `save` no se llama |
+
+Total: 6 pruebas del caso de uso. En las de rechazo se verifican **dos cosas distintas**: el tipo de error (lo que ve quien llama) y que `save` no se llamó (que no se modificaron datos).
+
+### 6. Cómo ejecutar las pruebas
+
+```powershell
+npm test                       # todas las pruebas unitarias una vez (Jest)
+npm test -- update-course      # solo las del caso de uso
+npm run test:watch             # modo observador mientras se desarrolla
+npm run test:cov               # con cobertura
+```
+
+`npm test -- update-course` filtra los archivos de prueba cuya ruta coincide con `update-course`. Las pruebas no necesitan la API en ejecución ni PostgreSQL.
+
+### 7. Comprobar que una prueba protege algo
+
+Una prueba que nunca falla no protege nada. Para comprobarlo se cambió temporalmente la **regla de producción** en `update-course.use-case.ts` (`if (!isAdmin && !isOwner)` por `if (false)`), se ejecutó `npm test -- update-course` y falló la prueba de rechazo del docente que no es propietario. Al restaurar la línea original, el conjunto volvió a verde. El cambio temporal no se incluye en el commit. La demostración se ejecutó con Jest: con `if (false)` falló 1 prueba y, al restaurar la regla, volvieron a pasar las 6. Las capturas están en la tabla de evidencias del [Avance de la Etapa 4](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas).
+
+### 8. Pruebas y evidencias de la Sesión 23
+
+Las capturas de la Sesión 23 se reúnen con las de la Sesión 24 en una sola carpeta para toda la Semana 12:
+
+```text
+evidencias/actuacion14/
+```
+
+La tabla completa (compilación, repositorio simulado, casos de éxito y de rechazo, ejecución de `npm test -- update-course` y demostración de la regla modificada) está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas). Las capturas de ejecución (terminal) se tomaron con Jest.
+
+### 9. Preguntas de cierre
+
+**¿Por qué esta prueba no necesita PostgreSQL?**
+
+Porque `UpdateCourseUseCase` depende del contrato `CourseRepository`, no de TypeORM. En la prueba, el contrato lo cumple un repositorio falso en memoria que devuelve lo que cada caso necesita, de modo que la regla se ejecuta de forma aislada: no se abre ninguna conexión ni se requieren datos previos.
+
+**¿Qué diferencia hay entre probar que se lanzó `ForbiddenException` y probar que no se llamó a `save`?**
+
+Verifican cosas distintas. `rejects.toThrow(ForbiddenException)` comprueba **qué ve quien llama**: el tipo de error. `expect(repository.saveCalls).toBe(0)` comprueba **el efecto secundario**: que no se persistió ningún cambio. Una regla de seguridad estaría incompleta si respondiera un error después de modificar datos; por eso las pruebas de rechazo incluyen las dos comprobaciones.
+
+### 10. Archivos relacionados con la implementación
+
+- `src/courses/use-cases/update-course.use-case.spec.ts`: pruebas del caso de uso con repositorio simulado.
+- `src/courses/use-cases/update-course.use-case.ts`: regla de negocio probada (sin cambios).
+- `src/courses/domain/course.repository.ts`: contrato que se simula.
+- `jest.config.ts`: configuración de Jest para las pruebas unitarias.
+- `tsconfig.spec.json`: configuración de TypeScript para compilar y ejecutar las pruebas.
+- `vitest.config.e2e.ts`: configuración de Vitest que se conserva solo para el comando E2E existente.
+
+### 11. Alcance de la Sesión 23
+
+Esta etapa incorpora:
+
+- Pruebas unitarias del caso de uso con un repositorio simulado, en la forma Arrange - Act - Assert.
+- Casos de éxito, de recurso inexistente y de rechazo del docente que no es propietario.
+- Verificación de que el repositorio no guarda cambios cuando la regla rechaza.
+- Instrucciones para ejecutar el conjunto de pruebas.
+- Migración de las pruebas unitarias de Vitest a Jest, sin cambios en la lógica de negocio.
+
+**Fuera del alcance:** las pruebas de controladores y la cobertura se tratan en la Sesión 24; las pruebas e2e, la base de datos de pruebas y la automatización CI/CD pertenecen a la Semana 13.
+
+## Semana 12: controladores, cobertura y calidad de pruebas (Sesión 24)
+
+Período de trabajo: Semana 12 (16 al 22 de noviembre de 2026), Sesión 24, Avance de la Etapa 4.
+
+**Resultado de aprendizaje:** probar que un controlador delega correctamente, interpretar la cobertura y distinguir una prueba útil de una que solo aumenta porcentajes.
+
+### 1. Qué prueba un controlador
+
+El controlador es deliberadamente pequeño: recibe parámetros HTTP ya transformados, delega en un caso de uso o servicio y devuelve el resultado. Por eso sus pruebas **no repiten la regla de negocio**: comprueban que el puente HTTP invoca el componente correcto con los argumentos correctos.
+
+| Se prueba aquí | Se prueba en otro lugar |
+|---|---|
+| El controlador conserva el `id` | La regla de propiedad: `UpdateCourseUseCase` |
+| No modifica el DTO | La autorización por rol: `RolesGuard` |
+| Entrega la identidad autenticada | La validación del cuerpo: `ValidationPipe` |
+| No oculta los errores del caso de uso | Las consultas a la base de datos: pruebas de integración (Semana 13) |
+
+### 2. Controlador con dependencia simulada
+
+En `src/courses/courses.controller.spec.ts` se simula el **caso de uso**, no el controlador:
+
+```typescript
+const updateCourseUseCaseMock = { execute: jest.fn() };
+
+const module = await Test.createTestingModule({
+  controllers: [CoursesController],
+  providers: [
+    { provide: CoursesService, useValue: coursesService },
+    { provide: UpdateCourseUseCase, useValue: updateCourseUseCaseMock },
+  ],
+})
+  .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+  .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+  .compile();
+
+it('debe delegar el identificador, el DTO y la identidad autenticada', async () => {
+  const dto = { title: 'NestJS avanzado' };
+  updateCourse.execute.mockResolvedValue({ id: 7, ...dto });
+
+  const respuesta = await controller.update(7, dto, { user: docente });
+
+  expect(respuesta).toEqual({ id: 7, ...dto });
+  expect(updateCourseUseCaseMock.execute).toHaveBeenCalledWith(courseId, dto, authenticatedUser);
+});
+```
+
+Los guards se reemplazan porque se prueban por separado (`RolesGuard` tiene su propio archivo de pruebas).
+
+### 3. Casos probados del controlador
+
+| Grupo | Prueba | Qué comprueba |
+|---|---|---|
+| Consultas | Delegación de la consulta de cursos | `findAll` recibe los parámetros tal como llegan |
+| Consultas | Delegación de la búsqueda por identificador | `findOne` recibe el `id` numérico |
+| Actualización | Delegación de identificador, DTO e identidad | `execute` recibe los tres argumentos correctos |
+| Actualización | `ForbiddenException` se propaga | El error del caso de uso no se convierte en un falso `200` |
+| Actualización | `NotFoundException` se propaga | Igual para el curso inexistente |
+| Creación | Delegación con la identidad autenticada | `create` recibe el DTO y el usuario |
+| Eliminación | Delegación del identificador | `remove` recibe el `id` numérico |
+
+### 4. Cobertura como señal
+
+```powershell
+npm test               # pruebas unitarias con Jest
+npm run test:watch     # modo observador
+npm run test:cov       # pruebas con informe de cobertura
+```
+
+La cobertura indica qué líneas, funciones y ramas se ejecutaron durante las pruebas. Se configura mediante `jest.config.ts` y el informe se genera en `coverage/`, carpeta que `.gitignore` excluye del repositorio.
+
+**Resultado actual de `npm run test:cov` (Jest):**
+
+| Métrica | Resultado |
+|---|---:|
+| Sentencias | 61,38 % |
+| Ramas | 52,60 % |
+| Funciones | 62,16 % |
+| Líneas | 61,45 % |
+
+El conjunto que produce estos resultados es de 15 suites y 68 pruebas aprobadas, sin pruebas fallidas. El porcentaje global es una señal para localizar rutas sin ejercitar, no un objetivo en sí mismo (véase la primera pregunta de cierre).
+
+**Cobertura inicial (Jest, sin los specs de `RolesGuard` y `CoursesService`):** sentencias 54,45 %, ramas 47,39 %, funciones 52,7 % y líneas 53,81 %, con 13 suites y 53 pruebas aprobadas. En esa ejecución `roles.guard.ts` tenía 20 % de sentencias y 11,11 % de líneas, y `courses.service.ts` 13,33 % de sentencias y 7,14 % de líneas.
+
+| Pregunta | Mejor evidencia |
+|---|---|
+| ¿Se ejecutó la rama de rechazo? | Cobertura de ramas y una prueba de error |
+| ¿La regla es correcta? | Una expectativa clara sobre el resultado o la excepción |
+| ¿La prueba es independiente? | No depende del orden, del reloj real ni de una base local |
+| ¿El nombre explica el contrato? | Un nombre como `debe rechazar a un docente que no es el propietario` |
+
+Una cobertura alta no garantiza calidad: se puede ejecutar una línea sin comprobar su resultado. Una cobertura baja sí puede revelar rutas sin ejercitar.
+
+### 5. Ramas sin cubrir y pruebas añadidas
+
+Al ejecutar la cobertura antes de añadir las pruebas del guard y del servicio, se buscaron ramas relevantes sin ejercitar. Con Jest, la cobertura inicial se obtuvo ignorando temporalmente los specs de `RolesGuard` y `CoursesService`. Se eligieron dos zonas:
+
+| Zona | Qué no estaba cubierto | Pruebas añadidas |
+|---|---|---|
+| `src/auth/guards/roles.guard.ts` | Toda la autorización por rol: ruta sin `@Roles()`, rol permitido, rol rechazado y usuario ausente | 6 pruebas en `roles.guard.spec.ts` |
+| `src/courses/courses.service.ts` | `findAll` (paginación, filtro por nivel y total de páginas) y `remove` (curso existente e inexistente) | 5 pruebas en `courses.service.spec.ts` |
+
+Las pruebas de `RolesGuard` verifican que un rol no autorizado y una identidad ausente producen `ForbiddenException`, y que una ruta sin `@Roles()` no restringe. Las de `remove` comprueban además que, si el curso no existe, no se llama a `remove` del repositorio.
+
+### 6. Qué no debe simularse
+
+No se simula la unidad que se está probando; se simula su dependencia:
+
+| Se prueba | Se simula |
+|---|---|
+| `UpdateCourseUseCase` | `CourseRepository` (no el caso de uso) |
+| `CoursesController` | `UpdateCourseUseCase` y `CoursesService` (no el controlador) |
+| `RolesGuard` | `Reflector` y el contexto de ejecución (no el guard) |
+| `CoursesService` | El repositorio de TypeORM (no el servicio) |
+
+Este límite mantiene cada prueba enfocada y hace evidente qué falló cuando una prueba se pone en rojo.
+
+### 7. Pruebas y evidencias de la Sesión 24
+
+Las capturas de la Sesión 24 (pruebas del controlador y cobertura) se guardan en la misma carpeta de toda la Semana 12:
+
+```text
+evidencias/actuacion14/
+```
+
+El detalle está en la tabla de evidencias del [Avance de la Etapa 4](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas).
+
+### 8. Preguntas de cierre
+
+**¿Por qué una cobertura de 100 % no autoriza eliminar la revisión de código?**
+
+Porque la cobertura mide qué líneas **se ejecutaron**, no si se **comprobó su resultado**: una prueba sin expectativas útiles puede recorrer una línea y dejar la cobertura en 100 %. Tampoco detecta requisitos que nunca se programaron, expectativas equivocadas, simulaciones que ocultan fallos de integración, ni problemas de diseño, seguridad o legibilidad, que son justamente lo que revisa una persona al leer el código.
+
+**¿Qué prueba unitaria se agregaría antes de modificar la regla de propiedad?**
+
+Primero, una prueba que describa el **comportamiento nuevo** y que falle con el código actual; por ejemplo, si cambiara la regla para permitir a un segundo docente asignado al curso, `debe permitir que el docente asignado actualice el curso`. Se confirma que falla, se cambia la regla y se comprueba que pasa. Las pruebas existentes (docente ajeno y curso inexistente, siempre con la verificación de que `save` no se llama) se conservan como red de seguridad para que el cambio no abra una vía no prevista.
+
+### 9. Archivos relacionados con la implementación
+
+- `src/courses/courses.controller.spec.ts`: pruebas del controlador con dependencias simuladas.
+- `src/courses/courses.service.spec.ts`: pruebas de `findAll`, `findOne`, `create` y `remove`.
+- `src/auth/guards/roles.guard.spec.ts`: pruebas de la autorización por rol.
+- `jest.config.ts`: configuración de Jest y de la cobertura.
+- `tsconfig.spec.json`: configuración de TypeScript para compilar y ejecutar las pruebas.
+
+### 10. Alcance de la Sesión 24
+
+Esta etapa incorpora:
+
+- Pruebas de un controlador que delegan en un caso de uso, sin repetir la regla de negocio.
+- Pruebas de propagación de errores del caso de uso.
+- Informe de cobertura con Jest (`npm run test:cov`) y pruebas para ramas sin ejercitar.
+- Criterios para distinguir una prueba útil de una que solo aumenta porcentajes.
+
+**Fuera del alcance:** las pruebas de integración, las pruebas e2e, la base de datos de pruebas y la automatización CI/CD pertenecen a la Semana 13.
+
+## Avance de Etapa 4 — Semana 12: pruebas unitarias que protegen reglas
+
+Este avance reúne las Sesiones 23 y 24.
+
+| Requisito del avance | Estado | Dónde está |
+|---|---|---|
+| Pruebas unitarias de un caso de uso con repositorio simulado | Cumplido | `update-course.use-case.spec.ts` |
+| Éxito, recurso inexistente y una regla de autorización rechazada | Cumplido | El mismo archivo (6 pruebas) |
+| Prueba de controlador que verifica delegación de identificador, DTO e identidad autenticada | Cumplido | `courses.controller.spec.ts` |
+| Las pruebas no usan PostgreSQL ni red | Cumplido | Repositorio y casos de uso simulados |
+| El README indica el comando para ejecutar las pruebas | Cumplido | Apartado 6 de la Sesión 23 y "Comandos disponibles" |
+| Pruebas unitarias ejecutadas con Jest tras la migración desde Vitest | Cumplido | `npm test`: 15 suites y 68 pruebas aprobadas, 0 fallidas |
+| Informe de cobertura | Cumplido | `npm run test:cov`: 61,38 % de sentencias |
+| Compilación del proyecto | Cumplido | `npm run build` finalizó sin errores |
+
+### Resultados actuales (Jest)
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` | 15 suites aprobadas, 68 pruebas aprobadas, 0 fallidas |
+| `npm run test:cov` | Sentencias 61,38 %; ramas 52,60 %; funciones 62,16 %; líneas 61,45 % |
+| `npm run build` | Finalizó correctamente, sin errores |
+
+**Resultado histórico (Vitest, antes de la migración):** 16 archivos y 69 pruebas aprobadas. La diferencia con el resultado actual se debe a que `src/app.controller.spec.ts`, una prueba de integración HTTP, se excluyó del conjunto unitario de Jest. Vitest se conserva solo para el comando E2E existente.
+
+### Demostración
+
+1. Ejecutar el conjunto completo: `npm run test` (con Jest: 15 suites y 68 pruebas aprobadas, 0 fallidas).
+2. Cambiar temporalmente la regla en `src/courses/use-cases/update-course.use-case.ts`: reemplazar `if (!isAdmin && !isOwner)` por `if (false)`.
+3. Ejecutar `npm test -- update-course`: **falla la prueba de rechazo del docente que no es propietario** (`debe rechazar que un docente modifique el curso de otro docente`).
+4. Restaurar la línea original (`if (!isAdmin && !isOwner)`) y comprobar que las pruebas vuelven a verde.
+
+*Nota:* los pasos 3 y 4 se ejecutaron con Jest: con `if (false)` falló 1 prueba (1 fallida y 5 aprobadas) y, al restaurar la regla, volvieron a pasar las 6.
+
+**Qué quedaría desprotegido si se borrara esa prueba:** si se borra la prueba del docente ajeno, ninguna prueba fallaría aunque alguien rompiera la regla, y un docente podría modificar los cursos de otro sin que el equipo se enterara hasta que alguien lo notara en producción. Una regla de seguridad sin una prueba que la proteja puede romperse sin que nadie lo vea.
+
+### Evidencias del avance (`evidencias/actuacion14/`)
+
+| Código | Requisito o prueba | Qué muestra | Archivo |
+|---|---|---|---|
+| E01 | Compilación y conjunto completo | `npm run build` sin errores y `npm run test` con 15 suites y 68 pruebas en verde (Jest) | `1. Compilación y pruebas arriba.png` y `1. Compilación y pruebas abajo.png` |
+| E02 | Caso de uso con repositorio simulado: éxito, recurso inexistente y regla rechazada | La clase `InMemoryCourseRepository` y el `beforeEach` que la entrega al caso de uso; la prueba de éxito; y las de curso inexistente y docente ajeno con `saveCalls` igual a 0 | `2. Repositorio simulado.png`, `2. Caso exitoso.png` y `2. Casos de rechazo.png` |
+| E03 | Ejecución de las pruebas del caso de uso | `npm test -- update-course`: las 6 pruebas en verde | `3. Pruebas del caso de uso.png` |
+| E04 | Prueba de controlador: delegación de identificador, DTO e identidad | El controlador con el caso de uso simulado, la propagación de errores y `npm test -- courses.controller` con las 8 pruebas en verde | `4. Controlador con dependencia simulada.png`, `4. Delegación del ID, el DTO y la identidad.png`, `4. Delegación y propagación de errores.png` y `4. Pruebas del controlador.png` |
+| E05 | Las pruebas no usan PostgreSQL ni red | Los `import` del archivo de pruebas: solo Nest, el contrato y el propio caso de uso | `5. Imports sin PostgreSQL ni red.png` |
+| E06 | Demostración: regla modificada temporalmente | La línea `if (false)` en `update-course.use-case.ts`, la prueba de rechazo del docente ajeno en rojo y la regla restaurada con todo en verde | `6. Regla modificada.png`, `6. Pruebas en rojo.png` y `6. Regla restaurada en verde.png` |
+| E07 | Cobertura (complementaria) | Informe `npm run test:cov` con Jest antes de añadir las pruebas del guard y del servicio (13 suites, 53 pruebas, 54,45 % de sentencias) y después (15 suites, 68 pruebas, 61,38 %) | `7. Cobertura inicial arriba.png`, `7. Cobertura inicial abajo.png`, `7. Cobertura final arriba.png` y `7. Cobertura final abajo.png` |
+| E08 | El README indica el comando para ejecutar las pruebas | Vista previa de los apartados de ejecución de pruebas y de "Comandos disponibles" | `8. README comandos de prueba.png` |
+
+Las capturas de ejecución de esta tabla se tomaron con Jest y coinciden con los "Resultados actuales (Jest)" (15 suites, 68 pruebas, cobertura de 61,38 % en sentencias y compilación exitosa). En la cobertura inicial (E07) se ignoraron temporalmente los specs del guard y del servicio, por eso muestra 13 suites y 53 pruebas. Las capturas deben mostrar el resultado real obtenido. Antes de entregar, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### Criterio de éxito
+
+Las pruebas son rápidas (no abren conexiones), deterministas (no dependen de datos previos, del reloj ni del orden), legibles (cada nombre explica la regla) y verifican decisiones de negocio reales —quién puede modificar un curso— en vez de limitarse a ejecutar líneas.
+
 ## Modelo de datos
 
 El modelo académico principal relaciona tres entidades:
@@ -2858,6 +3222,27 @@ Las evidencias documentan:
 
 Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
 
+### Evidencias de la Semana 12 — Sesiones 23 y 24 y Avance de Etapa 4
+
+Toda la Semana 12 comparte una sola carpeta de capturas:
+
+```text
+evidencias/actuacion14/
+```
+
+La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas).
+
+Las evidencias documentan:
+
+- Compilación correcta y conjunto de pruebas en verde (Jest: 15 suites y 68 pruebas aprobadas).
+- Repositorio simulado y pruebas de éxito, recurso inexistente y regla rechazada.
+- Pruebas del controlador: delegación del identificador, del DTO y de la identidad autenticada, y propagación de errores.
+- Pruebas que no usan PostgreSQL ni red.
+- La regla de propiedad modificada temporalmente, las pruebas en rojo y la regla restaurada.
+- Informe de cobertura con Jest antes (54,45 % de sentencias) y después (61,38 %) de añadir las pruebas del guard y del servicio.
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -2919,6 +3304,13 @@ Las pruebas realizadas en las distintas etapas incluyen:
 - Registro de solicitudes y medición del tiempo de respuesta sin exponer datos sensibles.
 - Actualización de cursos mediante un caso de uso con repositorio falso: propietario, administrador, docente ajeno (`403`) y curso inexistente (`404`).
 - Adaptador TypeORM que traduce `findById` y `save` al repositorio de la biblioteca.
+- Pruebas unitarias (Jest) del caso de uso con repositorio simulado: éxito, recurso inexistente y rechazo del docente ajeno, verificando que `save` no se llama cuando la regla rechaza.
+- Comprobación de que una prueba falla cuando se modifica una expectativa y vuelve a pasar al restaurarla.
+- Controlador de cursos: delegación del identificador, del DTO y de la identidad autenticada, y propagación de `ForbiddenException` y `NotFoundException` sin convertirlas en una respuesta exitosa.
+- `RolesGuard`: ruta sin `@Roles()`, rol autorizado, rol no autorizado e identidad ausente.
+- `CoursesService`: paginación, filtro por nivel, total de páginas y eliminación de cursos existentes e inexistentes.
+- Informe de cobertura con Jest para localizar ramas sin ejercitar (61,38 % de sentencias en el resultado actual).
+- Cambio temporal de la regla de propiedad: la prueba de rechazo del docente ajeno pasa a rojo y vuelve a verde al restaurarla.
 
 Los puntos deben considerarse pruebas realizadas solo cuando se hayan confirmado con las solicitudes HTTP, las consultas a la base de datos o el código correspondiente.
 
@@ -3049,22 +3441,34 @@ Iniciar en producción:
 npm run start:prod
 ```
 
-Ejecutar pruebas unitarias:
+Ejecutar pruebas unitarias (Jest):
 
 ```bash
 npm run test
 ```
 
-Ejecutar pruebas end-to-end:
+Ejecutar solo las pruebas de un archivo (por ejemplo, el caso de uso de actualización de cursos):
 
 ```bash
-npm run test:e2e
+npm test -- update-course
 ```
 
-Generar cobertura de pruebas:
+Ejecutar las pruebas en modo observador:
+
+```bash
+npm run test:watch
+```
+
+Ejecutar las pruebas con informe de cobertura (Jest; el informe se genera en `coverage/`):
 
 ```bash
 npm run test:cov
+```
+
+Ejecutar pruebas end-to-end (se conserva Vitest para este comando):
+
+```bash
+npm run test:e2e
 ```
 
 Los comandos disponibles dependen de los scripts declarados en `package.json`.
@@ -3135,7 +3539,9 @@ Las funcionalidades documentadas incluyen:
 - Documentación de HTTPS/TLS y de la gestión de secretos como requisito de producción.
 - Middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe`.
 - Caso de uso `UpdateCourseUseCase`, contrato `CourseRepository` y adaptador `TypeOrmCourseRepository`.
-- Evidencias de las pruebas de registro, inicio de sesión, validaciones, protección de rutas, permisos por rol y controles de las Sesiones 20, 21 y 22.
+- Pruebas unitarias del caso de uso con repositorio simulado, ejecutadas con Jest (migradas desde Vitest, que se conserva para el flujo E2E).
+- Pruebas del controlador, de `RolesGuard` y de `CoursesService`, e informe de cobertura: 15 suites y 68 pruebas aprobadas, con 61,38 % de cobertura de sentencias.
+- Evidencias de las pruebas de registro, inicio de sesión, validaciones, protección de rutas, permisos por rol y controles de las Sesiones 20, 21, 22, 23 y 24.
 
 En la Semana 6 se amplió `GET /students` para incorporar búsqueda textual, filtros combinables, paginación, ordenamiento controlado y validación de parámetros.
 
@@ -3247,7 +3653,39 @@ Las funcionalidades incorporadas incluyen:
 
 Las evidencias de esta etapa se guardan en `evidencias/actuacion13/`. El detalle está en la sección [Semana 11, Sesión 22](#semana-11-casos-de-uso-repositorios-y-adaptadores-sesión-22) y en el [Avance de Etapa 3](#avance-de-etapa-3--semana-11-arquitectura-mantenible-y-comportamiento-transversal).
 
-Solo la operación de actualización de cursos se migró a este patrón; las demás operaciones continúan en sus servicios. Las pruebas unitarias en profundidad corresponden a la Semana 12.
+Solo la operación de actualización de cursos se migró a este patrón; las demás operaciones continúan en sus servicios. Las pruebas unitarias del caso de uso se implementaron en la Sesión 23 (véase el avance siguiente).
+
+### Avance de la Semana 12 — Sesión 23
+
+Se incorporaron pruebas unitarias para la regla de propiedad de la actualización de cursos.
+
+Las funcionalidades incorporadas incluyen:
+
+- Pruebas de `UpdateCourseUseCase` con un repositorio falso en memoria, sin HTTP ni PostgreSQL.
+- Seis casos: propietario, búsqueda con el identificador recibido, administrador, conservación del propietario, curso inexistente y rechazo del docente ajeno.
+- Verificación de que `save` no se llama cuando la regla rechaza.
+- Instrucciones de ejecución (`npm test -- update-course`) en el README.
+- Migración posterior de estas pruebas de Vitest a Jest, sin cambios en la lógica de negocio.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion14/`. El detalle está en la sección [Semana 12, Sesión 23](#semana-12-pruebas-unitarias-de-reglas-de-negocio-sesión-23).
+
+Las pruebas de controladores y la cobertura se implementaron en la Sesión 24 (véase el avance siguiente).
+
+### Avance de la Semana 12 — Sesión 24
+
+Se completó el conjunto de pruebas unitarias con el controlador, la autorización por rol y la cobertura.
+
+Las funcionalidades incorporadas incluyen:
+
+- Pruebas de `CoursesController` con el caso de uso simulado: delegación del identificador, del DTO y de la identidad autenticada, y propagación de errores.
+- Pruebas de `RolesGuard` (6) y ampliación de las de `CoursesService` con `findAll` y `remove` (5).
+- Configuración de cobertura mediante `jest.config.ts` y comando `npm run test:cov`.
+- Al añadir estas pruebas, el conjunto original con Vitest pasó a 16 archivos y 69 pruebas (resultado histórico).
+- Resultado actual con Jest: 15 suites y 68 pruebas aprobadas, 0 fallidas; cobertura de 61,38 % en sentencias, 52,60 % en ramas, 62,16 % en funciones y 61,45 % en líneas; `npm run build` sin errores.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion14/`. El detalle está en la sección [Semana 12, Sesión 24](#semana-12-controladores-cobertura-y-calidad-de-pruebas-sesión-24) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas).
+
+Las pruebas de integración y la automatización corresponden a la Semana 13.
 
 Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
 

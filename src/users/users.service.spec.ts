@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UsersService } from './users.service.js';
@@ -8,14 +8,14 @@ describe('UsersService', () => {
   let service: UsersService;
 
   const repositoryMock = {
-    findOne: vi.fn(),
-    create: vi.fn(),
-    save: vi.fn(),
-    createQueryBuilder: vi.fn(),
+    findOne: jest.fn<(options: unknown) => Promise<User | null>>(),
+    create: jest.fn<(entityLike: unknown) => User>(),
+    save: jest.fn<(entity: User) => Promise<User>>(),
+    createQueryBuilder: jest.fn(),
   };
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -32,7 +32,7 @@ describe('UsersService', () => {
   });
 
   it('debe buscar un usuario por correo', async () => {
-    const usuario = { id: 1, email: 'ana@example.com' };
+    const usuario = { id: 1, email: 'ana@example.com' } as User;
     repositoryMock.findOne.mockResolvedValue(usuario);
 
     await expect(service.findByEmail('ana@example.com')).resolves.toEqual(
@@ -44,7 +44,7 @@ describe('UsersService', () => {
   });
 
   it('debe buscar un usuario por ID', async () => {
-    const usuario = { id: 1, email: 'ana@example.com' };
+    const usuario = { id: 1, email: 'ana@example.com' } as User;
     repositoryMock.findOne.mockResolvedValue(usuario);
 
     await expect(service.findById(1)).resolves.toEqual(usuario);
@@ -52,7 +52,7 @@ describe('UsersService', () => {
   });
 
   it('debe crear un usuario guardando el hash y sin elegir el rol', async () => {
-    const usuario = { id: 3, email: 'nuevo@example.com' };
+    const usuario = { id: 3, email: 'nuevo@example.com' } as User;
     repositoryMock.create.mockReturnValue(usuario);
     repositoryMock.save.mockResolvedValue(usuario);
 
@@ -67,3 +67,4 @@ describe('UsersService', () => {
     expect(repositoryMock.save).toHaveBeenCalledWith(usuario);
   });
 });
+

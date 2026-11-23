@@ -9,5 +9,21 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      // Solo se mide el código de la aplicación; se excluyen las pruebas y los
+      // archivos que son declaraciones (módulos, DTO, entidades, tipos).
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.spec.ts',
+        'src/main.ts',
+        'src/**/*.module.ts',
+        'src/**/dto/**',
+        'src/**/entities/**',
+        'src/**/types/**',
+        'src/**/*.enum.ts',
+      ],
+    },
   },
 });

@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+﻿import { jest } from '@jest/globals';
 import {
   BadRequestException,
   HttpStatus,
@@ -7,14 +7,24 @@ import {
 } from '@nestjs/common';
 import { HttpErrorFilter } from './http-error.filter.js';
 
+// Forma de la respuesta de error que construye el filter.
+interface ErrorBody {
+  statusCode: number;
+  error: string;
+  message: string | string[];
+  path: string;
+  timestamp: string;
+  requestId?: string;
+}
+
 describe('HttpErrorFilter', () => {
   let filter: HttpErrorFilter;
-  const json = vi.fn();
-  const status = vi.fn().mockReturnValue({ json });
+  const json = jest.fn<(body: ErrorBody) => void>();
+  const status = jest.fn().mockReturnValue({ json });
 
   const response = {
     status,
-    getHeader: vi.fn().mockReturnValue('id-de-prueba'),
+    getHeader: jest.fn().mockReturnValue('id-de-prueba'),
   };
   const request = { method: 'GET', originalUrl: '/courses/999?token=secreto' };
 
@@ -30,13 +40,13 @@ describe('HttpErrorFilter', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     status.mockReturnValue({ json });
     response.getHeader.mockReturnValue('id-de-prueba');
 
     // El filter registra los errores 500 en el log interno; se silencia en las
     // pruebas para que la salida de los tests no parezca un fallo.
-    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
 
   it('debe conservar el estado y el mensaje de un error HTTP controlado', () => {
@@ -86,3 +96,4 @@ describe('HttpErrorFilter', () => {
     expect(JSON.stringify(cuerpo)).not.toContain('secreto');
   });
 });
+
