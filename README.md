@@ -1,4 +1,4 @@
-﻿# Sistema de Gestión Académica — CourseHub API
+# Sistema de Gestión Académica — CourseHub API
 
 <p align="center">
   <a href="https://nestjs.com/" target="blank">
@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); **Vitest se conserva únicamente para el flujo E2E existente** (`npm run test:e2e`).
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); Desde la Semana 13 (Sesión 25) las pruebas end-to-end también usan **Jest y Supertest** (`npm run test:e2e`) contra una base de datos exclusiva de pruebas, y en la Sesión 26 un flujo de **GitHub Actions** ejecuta el análisis estático, las pruebas y la compilación con cada cambio. Vitest ya no ejecuta ningún comando del proyecto.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -27,6 +27,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Semana 12: pruebas unitarias de reglas de negocio (Sesión 23)](#semana-12-pruebas-unitarias-de-reglas-de-negocio-sesión-23)
 - [Semana 12: controladores, cobertura y calidad de pruebas (Sesión 24)](#semana-12-controladores-cobertura-y-calidad-de-pruebas-sesión-24)
 - [Avance de Etapa 4 — Semana 12: pruebas unitarias que protegen reglas](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas)
+- [Semana 13: pruebas e2e y automatización de calidad (Sesiones 25 y 26)](#semana-13-pruebas-e2e-y-automatización-de-calidad-sesiones-25-y-26)
+- [Avance de Etapa 4 — Semana 13: calidad integrada y automatizada](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -61,8 +63,10 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **Guards, `Reflector` y `SetMetadata` de NestJS:** autorización por roles mediante `RolesGuard` y el decorador `@Roles()`.
 - **@nestjs/throttler:** limitación de la tasa de solicitudes (rate limiting) mediante `ThrottlerModule` y `ThrottlerGuard`.
 - **CORS de NestJS (`app.enableCors`):** restricción de los orígenes web que pueden leer las respuestas de la API desde un navegador.
-- **Jest, `ts-jest` y `@types/jest`:** pruebas unitarias en TypeScript (`npm test`) y cobertura (`npm run test:cov`).
-- **Vitest:** se conserva solo para el comando E2E existente; las pruebas unitarias ya no lo usan.
+- **Jest, `ts-jest` y `@types/jest`:** pruebas unitarias en TypeScript (`npm test`), cobertura (`npm run test:cov`) y pruebas end-to-end (`npm run test:e2e`).
+- **Supertest:** envía solicitudes HTTP reales a la aplicación Nest en las pruebas e2e.
+- **GitHub Actions:** flujo `quality` que instala dependencias con `npm ci`, ejecuta lint, pruebas unitarias, pruebas e2e y compilación.
+- **Vitest:** se usó al inicio del proyecto. Ya no ejecuta ningún comando (las pruebas unitarias y las e2e usan Jest); `vitest.config.ts` y `vitest.config.e2e.ts` se conservan sin uso.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
@@ -293,11 +297,28 @@ evidencias/
 ├── actuacion11/
 ├── actuacion12/
 ├── actuacion13/
-└── actuacion14/
+├── actuacion14/
+└── actuacion15/
+
+test/
+├── helpers/
+│   └── test-app.ts
+├── setup-env.ts
+├── app.e2e-spec.ts
+├── auth.e2e-spec.ts
+└── courses.e2e-spec.ts
+
+.github/
+└── workflows/
+    └── quality.yml
 
 .env
 .env.example
+.env.test.example
 .gitignore
+jest.config.ts
+jest.config.e2e.ts
+tsconfig.e2e.json
 package.json
 README.md
 ```
@@ -1890,7 +1911,7 @@ El material del curso muestra los ejemplos con Jest. Este proyecto se generó co
 - Creación de `tsconfig.spec.json`, la configuración de TypeScript usada para compilar y ejecutar las pruebas.
 - Adaptación de la configuración para trabajar con TypeScript y módulos ESM, y corrección de importaciones y de la compatibilidad de algunos tests con ESM.
 - Exclusión de `src/app.controller.spec.ts` del conjunto unitario de Jest, porque corresponde a una prueba de integración HTTP y no a una prueba unitaria.
-- Conservación de Vitest para el comando E2E existente: no se eliminaron sus dependencias ni su configuración (`vitest.config.e2e.ts`).
+- Conservación de Vitest para el comando E2E existente: no se eliminaron sus dependencias ni su configuración (`vitest.config.e2e.ts`). En la Semana 13 el comando E2E también pasó a Jest y esos archivos de Vitest quedaron sin uso.
 - **No se modificó la lógica de negocio** (casos de uso, servicios, controladores, endpoints ni entidades): solo cambió la herramienta que ejecuta las pruebas.
 
 **Equivalencias aplicadas en las pruebas:**
@@ -1999,7 +2020,7 @@ Verifican cosas distintas. `rejects.toThrow(ForbiddenException)` comprueba **qu�
 - `src/courses/domain/course.repository.ts`: contrato que se simula.
 - `jest.config.ts`: configuración de Jest para las pruebas unitarias.
 - `tsconfig.spec.json`: configuración de TypeScript para compilar y ejecutar las pruebas.
-- `vitest.config.e2e.ts`: configuración de Vitest que se conserva solo para el comando E2E existente.
+- `vitest.config.e2e.ts`: configuración de Vitest del comando E2E original; en la Semana 13 quedó sin uso porque el E2E pasó a Jest (`jest.config.e2e.ts`).
 
 ### 11. Alcance de la Sesión 23
 
@@ -2191,7 +2212,7 @@ Este avance reúne las Sesiones 23 y 24.
 | `npm run test:cov` | Sentencias 61,38 %; ramas 52,60 %; funciones 62,16 %; líneas 61,45 % |
 | `npm run build` | Finalizó correctamente, sin errores |
 
-**Resultado histórico (Vitest, antes de la migración):** 16 archivos y 69 pruebas aprobadas. La diferencia con el resultado actual se debe a que `src/app.controller.spec.ts`, una prueba de integración HTTP, se excluyó del conjunto unitario de Jest. Vitest se conserva solo para el comando E2E existente.
+**Resultado histórico (Vitest, antes de la migración):** 16 archivos y 69 pruebas aprobadas. La diferencia con el resultado actual se debe a que `src/app.controller.spec.ts`, una prueba de integración HTTP, se excluyó del conjunto unitario de Jest. En la Semana 13 el comando E2E también pasó a Jest.
 
 ### Demostración
 
@@ -2222,6 +2243,154 @@ Las capturas de ejecución de esta tabla se tomaron con Jest y coinciden con los
 ### Criterio de éxito
 
 Las pruebas son rápidas (no abren conexiones), deterministas (no dependen de datos previos, del reloj ni del orden), legibles (cada nombre explica la regla) y verifican decisiones de negocio reales —quién puede modificar un curso— en vez de limitarse a ejecutar líneas.
+
+## Semana 13: pruebas e2e y automatización de calidad (Sesiones 25 y 26)
+
+### Sesión 25 · Pruebas de integración y end-to-end
+
+#### 1. Qué comprueba cada tipo de prueba
+
+| Tipo | Qué ejecuta | Qué usa | Dónde está |
+|---|---|---|---|
+| Unitaria | Una regla aislada (caso de uso, guard, servicio) | Dependencias simuladas, sin HTTP ni PostgreSQL | `src/**/*.spec.ts` (`npm test`) |
+| Integración / e2e | La aplicación Nest completa: ruta, guards, pipes, controlador, filter y persistencia | Solicitudes HTTP reales con Supertest y una base PostgreSQL de pruebas | `test/*.e2e-spec.ts` (`npm run test:e2e`) |
+
+Las pruebas e2e verifican que las capas colaboran entre sí, pero no sustituyen a las unitarias: estas siguen siendo más rápidas para las reglas de negocio.
+
+#### 2. Herramientas
+
+- **Jest** ejecuta las pruebas e2e con su propia configuración, `jest.config.e2e.ts`, separada de la de las pruebas unitarias (`jest.config.ts`). Cada una recoge solo sus archivos: las unitarias, `src/**/*.spec.ts`; las e2e, `test/**/*.e2e-spec.ts`.
+- **Supertest** envía las solicitudes a `app.getHttpServer()` sin abrir un puerto fijo.
+- La aplicación se crea con el `AppModule` real y con la misma validación global de `src/main.ts` (`ValidationPipe` con `whitelist`, `forbidNonWhitelisted` y `transform`).
+- Único componente sustituido: `@nestjs/throttler`, mediante `test/mocks/throttler.mock.ts`, para que el limitador de solicitudes no interfiera con las pruebas.
+- El comando `npm run test:e2e` antes ejecutaba Vitest con `vitest.config.e2e.ts`. Ahora ejecuta Jest, y el archivo de Vitest se conserva sin uso.
+
+#### 3. Configuración y datos exclusivos de prueba
+
+- Las pruebas usan una base de datos distinta de la de desarrollo, por ejemplo `coursehub_test`. Sus variables se definen en `.env.test`, que se crea a partir de `.env.test.example` y no se sube a Git.
+- `test/setup-env.ts` carga `.env.test` antes de crear la aplicación. Si una variable ya existe en el entorno (como en GitHub Actions), no se sobrescribe.
+- `test/helpers/test-app.ts` **se niega a ejecutarse si `DATABASE_NAME` no termina en `_test`**, para que una prueba nunca pueda borrar la base de desarrollo.
+- Con `NODE_ENV=test` la aplicación no sincroniza el esquema. Al arrancar, el helper crea las tablas desde cero (`synchronize(true)`) únicamente en la base de pruebas.
+- Las cuentas de práctica (`admin`, `teacher` y `student`) se insertan directamente en la base de pruebas y se firman con el secreto de prueba. No se usan cuentas, datos ni contraseñas personales.
+
+#### 4. Aislamiento y repetibilidad
+
+- `beforeEach` llama a `resetDatabase`, que ejecuta `TRUNCATE ... RESTART IDENTITY CASCADE` sobre todas las tablas de las entidades. Cada prueba crea los datos que necesita, por lo que ninguna depende de otra ni del orden de ejecución.
+- Los tokens de las rutas protegidas se firman con `JwtService` (mismo secreto y mismo contenido que emite `POST /auth/login`). Así cada prueba no necesita iniciar sesión; los inicios de sesión reales se prueban de forma explícita en `auth.e2e-spec.ts`.
+- El limitador de solicitudes (`@nestjs/throttler`) se sustituye por un mock exclusivo de las pruebas e2e (`test/mocks/throttler.mock.ts`), configurado con `moduleNameMapper` en `jest.config.e2e.ts`. Así las pruebas no dependen de los límites de 20 solicitudes por minuto en general y 5 en `POST /auth/login`. Esos límites se comprobaron manualmente en la Sesión 20 (`evidencias/actuacion11/`) y no forman parte de este conjunto e2e.
+- Se usa `--runInBand` para que los archivos se ejecuten uno tras otro sobre la misma base.
+
+#### 5. Casos comprobados
+
+| Archivo | Caso | Tipo | Respuesta esperada |
+|---|---|---|---|
+| `app.e2e-spec.ts` | `GET /` | Ruta pública | `200` y el mensaje `CourseHub API está en línea` |
+| `courses.e2e-spec.ts` | `GET /courses` | Ruta pública | `200`, lista y paginación (`meta.total`) |
+| `courses.e2e-spec.ts` | `GET /courses/999999` | Rechazo | `404` con la forma uniforme de error |
+| `courses.e2e-spec.ts` | `POST /courses` con docente | Ruta protegida | `201` y `createdByUserId` del docente, también en la base |
+| `courses.e2e-spec.ts` | `POST /courses` sin token | Rechazo | `401` |
+| `courses.e2e-spec.ts` | `POST /courses` con estudiante | Rechazo | `403` y ningún curso creado |
+| `courses.e2e-spec.ts` | `POST /courses` con cuerpo inválido | Rechazo | `400` con la lista de mensajes |
+| `auth.e2e-spec.ts` | `POST /auth/register` | Ruta pública | `201`, rol `student`, sin contraseña en la respuesta |
+| `auth.e2e-spec.ts` | `POST /auth/register` con correo repetido | Rechazo | `409` |
+| `auth.e2e-spec.ts` | `POST /auth/login` válido | Ruta pública | `200` y `accessToken` |
+| `auth.e2e-spec.ts` | `POST /auth/login` con contraseña incorrecta | Rechazo | `401` `Credenciales inválidas` |
+| `auth.e2e-spec.ts` | `GET /auth/me` con token | Ruta protegida | `200` con `id`, `email` y `role` |
+| `auth.e2e-spec.ts` | `GET /auth/me` sin token y con token alterado | Rechazo | `401` |
+
+#### 6. Cómo ejecutarlas localmente
+
+1. Crear la base de pruebas (una sola vez):
+
+```powershell
+psql -U postgres -c "CREATE DATABASE coursehub_test;"
+```
+
+2. Crear `.env.test` y poner la contraseña local de PostgreSQL (si ya existe, conservarlo):
+
+```powershell
+Copy-Item .env.test.example .env.test
+```
+
+3. Ejecutar las pruebas e2e. Se recomienda ejecutarlas dos veces: el resultado debe ser idéntico.
+
+```bash
+npm run test:e2e
+npm run test:e2e
+```
+
+Las pruebas e2e **sí necesitan PostgreSQL** (la base `coursehub_test`); las unitarias (`npm test`) no.
+
+#### 7. Cómo interpretar un fallo e2e
+
+Un fallo de Supertest indica la respuesta esperada y la recibida. Por ejemplo, `expected 200 "OK", got 201 "Created"` significa que la ruta respondió `201` y la prueba esperaba `200`. El nombre de la prueba y el archivo indican qué rama se verificaba. Si la respuesta es `500`, el filter global oculta el detalle al cliente: la traza está en el registro de la terminal.
+
+### Sesión 26 · Automatización de calidad con GitHub Actions
+
+El archivo `.github/workflows/quality.yml` define el flujo `quality`, que se ejecuta con cada `push` y con cada `pull_request`.
+
+| Paso | Comando o acción | Qué señal ofrece |
+|---|---|---|
+| Obtener el código | `actions/checkout` | Trabaja con el commit que se verifica |
+| Configurar Node.js 22 con caché de npm | `actions/setup-node` | Entorno limpio y reproducible |
+| Fijar la versión de npm | `npm install --global npm@10.9.4` y `npm --version` | Misma versión de npm con la que se validó el `package-lock.json` |
+| Instalar dependencias | `npm ci` | Usa exactamente `package-lock.json` |
+| Análisis estático | `npm run lint` | Detecta problemas sin ejecutar el código |
+| Pruebas unitarias | `npm test` | Reglas de negocio sin PostgreSQL |
+| Pruebas e2e | `npm run test:e2e` | Colaboración entre capas contra PostgreSQL |
+| Compilación | `npm run build` | El proyecto compila |
+| Auditoría de dependencias | `npm audit --omit=dev --audit-level=high` | Señal informativa; no bloquea el flujo (`continue-on-error`) |
+
+- **PostgreSQL de prueba:** el flujo levanta un contenedor `postgres:16` con la base `coursehub_test`, exclusivo de esa ejecución. Las variables del flujo (`DATABASE_*`, `JWT_SECRET`) son solo de prueba; no contienen secretos reales ni credenciales de producción.
+- **Revisión de dependencias:** el trabajo `dependency-review` usa `actions/dependency-review-action` y se ejecuta solo en solicitudes de integración. En repositorios privados esta acción puede requerir que GitHub Advanced Security esté habilitado.
+- **Sin actualizaciones al azar:** si `npm audit` o la revisión de dependencias reportan un paquete, primero se identifica el paquete afectado, su compatibilidad, las pruebas necesarias y la actualización mínima segura; no se cambian versiones sin ese análisis.
+- **Alcance:** la integración continua es una señal repetible y no reemplaza la revisión de código. Este flujo no despliega la aplicación.
+
+**Fallo controlado.** Para comprobar que el flujo reporta los errores, se cambia una expectativa en una rama de práctica (por ejemplo, `.expect(201)` por `.expect(200)` en la creación de un curso), se envía a GitHub y se verifica que el paso **Pruebas e2e (Jest + Supertest)** aparece en rojo. Después se restaura la expectativa y se comprueba que el flujo vuelve a verde.
+
+## Avance de Etapa 4 — Semana 13: calidad integrada y automatizada
+
+Este avance reúne las Sesiones 25 y 26.
+
+| Requisito del avance | Estado | Dónde está |
+|---|---|---|
+| Pruebas e2e de una ruta pública, una ruta protegida y un caso de rechazo | Implementado | `test/courses.e2e-spec.ts` y `test/auth.e2e-spec.ts` |
+| Configuración y datos exclusivos de prueba | Implementado | `.env.test.example`, `test/setup-env.ts` y `test/helpers/test-app.ts` |
+| Preparación y limpieza que hacen el conjunto repetible | Implementado | `resetDatabase` en `beforeEach` y ejecución repetida con el mismo resultado |
+| Flujo que instala dependencias, ejecuta pruebas y construye el proyecto | Implementado | `.github/workflows/quality.yml` |
+| El README explica cómo ejecutar las verificaciones localmente | Implementado | Apartado 6 de la Sesión 25 y "Comandos disponibles" |
+
+El estado de cada requisito se confirma con las capturas de `evidencias/actuacion15/`, que deben mostrar los resultados reales de la ejecución.
+
+### Demostración
+
+1. Ejecutar el conjunto e2e (`npm run test:e2e`) y mostrar la ejecución automática correcta en GitHub Actions.
+2. Introducir una expectativa incorrecta en `test/courses.e2e-spec.ts` (cambiar `.expect(201)` por `.expect(200)` en la creación del curso).
+3. Ejecutar `npm run test:e2e`: la prueba falla con `expected 200 "OK", got 201 "Created"`. El mensaje indica que la ruta funciona (crea el curso) y que la expectativa es la incorrecta.
+4. Restaurar `.expect(201)` y comprobar que el conjunto vuelve a verde.
+
+### Evidencias del avance (`evidencias/actuacion15/`)
+
+| Código | Requisito o prueba | Qué muestra | Archivo |
+|---|---|---|---|
+| E01 | Compilación y conjuntos de pruebas | `npm run build` sin errores, `npm test` (15 suites y 68 pruebas), `npm run test:e2e` (3 suites y 14 pruebas) y `npm run lint` sin errores | `1. Compilación y pruebas arriba.png`, `1. Compilación y pruebas media1.png`, `1. Compilación y pruebas media2.png` y `1. Compilación y pruebas abajo.png` |
+| E02 | Ruta pública | El caso de `GET /courses` y el de `GET /courses/999999` | `2. Ruta pública.png` |
+| E03 | Ruta protegida | `POST /courses` con token de docente y `GET /auth/me` con token | `3. Ruta protegida.png` y `3. Ruta protegida auth.png` |
+| E04 | Casos de rechazo | Las pruebas de `401`, `403` y `400` | `4. Casos de rechazo arriba.png` y `4. Casos de rechazo abajo.png` |
+| E05 | Configuración y datos exclusivos | `.env.test.example`, el guard `_test` del helper y la base `coursehub_test` distinta de la de desarrollo | `5. Base de datos de pruebas env.png`, `5. Configuración de prueba.png` y `5. Base de datos de pruebas en PgAdmin.png` |
+| E06 | Preparación, limpieza y repetibilidad | `resetDatabase` en `beforeEach` y dos ejecuciones seguidas con el mismo resultado | `6. Preparación y limpieza.png`, `6. Limpieza de base de datos.png`, `6. Primera ejecución.png` y `6. Segunda ejecución.png` |
+| E07 | Flujo de integración continua | `.github/workflows/quality.yml` con instalación, pruebas y compilación | `7. Flujo quality.yml.png` |
+| E08 | Ejecución automática correcta | La ejecución de `quality` en verde, con sus pasos | `8. GitHub Actions en verde por fuera.png`, `8. GitHub Actions en verde por dentro.png` y `8. GitHub Actions en verde detalles.png` |
+| E09 | El README explica la ejecución local | Vista previa del apartado 6 de la Sesión 25 y de "Comandos disponibles" | `9. README verificaciones locales.png` y `9. README Comandos disponibles.png` |
+| E10 | Demostración local | La expectativa incorrecta, la prueba en rojo con su mensaje y la expectativa restaurada en verde | `10. Expectativa incorrecta.png`, `10. Prueba e2e en rojo.png` y `10. Expectativa restaurada en verde.png` |
+| E11 | Fallo controlado en GitHub Actions | El flujo en rojo señalando el paso que falló y, después, de nuevo en verde | `11. Actions en rojo por fuera.png`, `11. Actions en rojo por dentro.png`, `11. Actions en rojo detalle.png`, `11. Actions restaurado en verde por fuera.png` y `11. Actions restaurado en verde por dentro.png` |
+| E12 | Revisión de dependencias (complementaria) | Resultado del paso `npm audit` (0 vulnerabilidades) | `12. Revisión de dependencias.png` |
+
+Las capturas deben mostrar el resultado real obtenido. Antes de entregar, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### Criterio de éxito
+
+La API se valida de punta a punta sin depender de datos manuales, y el equipo recibe una señal automática antes de integrar cambios.
 
 ## Modelo de datos
 
@@ -3243,6 +3412,16 @@ Las evidencias documentan:
 
 Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
 
+### Evidencias de la Semana 13 — Sesiones 25 y 26 y Avance de Etapa 4
+
+Toda la Semana 13 comparte una sola carpeta de capturas:
+
+```text
+evidencias/actuacion15/
+```
+
+La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada). Documentan las pruebas e2e (ruta pública, ruta protegida y rechazos), la configuración y los datos exclusivos de prueba, la repetibilidad, el flujo de GitHub Actions y la demostración de un fallo controlado.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -3465,10 +3644,19 @@ Ejecutar las pruebas con informe de cobertura (Jest; el informe se genera en `co
 npm run test:cov
 ```
 
-Ejecutar pruebas end-to-end (se conserva Vitest para este comando):
+Ejecutar pruebas end-to-end (Jest y Supertest; requieren PostgreSQL y la base `coursehub_test` configurada en `.env.test`):
 
 ```bash
 npm run test:e2e
+```
+
+Ejecutar las verificaciones del flujo de integración continua en el mismo orden:
+
+```bash
+npm run lint
+npm test
+npm run test:e2e
+npm run build
 ```
 
 Los comandos disponibles dependen de los scripts declarados en `package.json`.
@@ -3539,7 +3727,7 @@ Las funcionalidades documentadas incluyen:
 - Documentación de HTTPS/TLS y de la gestión de secretos como requisito de producción.
 - Middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe`.
 - Caso de uso `UpdateCourseUseCase`, contrato `CourseRepository` y adaptador `TypeOrmCourseRepository`.
-- Pruebas unitarias del caso de uso con repositorio simulado, ejecutadas con Jest (migradas desde Vitest, que se conserva para el flujo E2E).
+- Pruebas unitarias del caso de uso con repositorio simulado, ejecutadas con Jest (migradas desde Vitest).
 - Pruebas del controlador, de `RolesGuard` y de `CoursesService`, e informe de cobertura: 15 suites y 68 pruebas aprobadas, con 61,38 % de cobertura de sentencias.
 - Evidencias de las pruebas de registro, inicio de sesión, validaciones, protección de rutas, permisos por rol y controles de las Sesiones 20, 21, 22, 23 y 24.
 
@@ -3685,7 +3873,21 @@ Las funcionalidades incorporadas incluyen:
 
 Las evidencias de esta etapa se guardan en `evidencias/actuacion14/`. El detalle está en la sección [Semana 12, Sesión 24](#semana-12-controladores-cobertura-y-calidad-de-pruebas-sesión-24) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas).
 
-Las pruebas de integración y la automatización corresponden a la Semana 13.
+Las pruebas de integración y la automatización se implementaron en la Semana 13 (véase el avance siguiente).
+
+### Avance de la Semana 13 — Sesiones 25 y 26
+
+Se incorporaron pruebas e2e y un flujo de integración continua.
+
+Las funcionalidades incorporadas incluyen:
+
+- Pruebas e2e con Jest y Supertest para una ruta pública, rutas protegidas y casos de rechazo (`401`, `403`, `400`, `404` y `409`).
+- Base de datos y configuración exclusivas de prueba (`.env.test`, base `coursehub_test`) con una protección que impide ejecutarlas contra otra base.
+- Limpieza de datos antes de cada prueba para que el conjunto sea repetible y no dependa del orden.
+- Flujo `.github/workflows/quality.yml`: `npm ci`, lint, pruebas unitarias, pruebas e2e, compilación, auditoría de dependencias y revisión de dependencias en pull requests.
+- Migración del comando `npm run test:e2e` de Vitest a Jest.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion15/`. El detalle está en la sección [Semana 13](#semana-13-pruebas-e2e-y-automatización-de-calidad-sesiones-25-y-26) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada).
 
 Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
 
