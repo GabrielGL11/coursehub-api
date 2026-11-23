@@ -62,7 +62,7 @@ describe('Cursos (e2e)', () => {
         .post('/courses')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'Pruebas e2e', level: 'intermediate' })
-        .expect(200);
+        .expect(201);
 
       expect(body).toMatchObject({
         title: 'Pruebas e2e',
