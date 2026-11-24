@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); Desde la Semana 13 (Sesión 25) las pruebas end-to-end también usan **Jest y Supertest** (`npm run test:e2e`) contra una base de datos exclusiva de pruebas, y en la Sesión 26 un flujo de **GitHub Actions** ejecuta el análisis estático, las pruebas y la compilación con cada cambio. Vitest ya no ejecuta ningún comando del proyecto.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); Desde la Semana 13 (Sesión 25) las pruebas end-to-end también usan **Jest y Supertest** (`npm run test:e2e`) contra una base de datos exclusiva de pruebas, y en la Sesión 26 un flujo de **GitHub Actions** ejecuta el análisis estático, las pruebas y la compilación con cada cambio. Vitest ya no ejecuta ningún comando del proyecto. Desde la Semana 14 (Sesiones 27 y 28) la API publica su contrato **OpenAPI** con Swagger (`/docs`), expone las rutas de negocio con **versionado por URI** (`/v1/...`) y se acompaña de una colección de solicitudes que demuestra el flujo principal de integración.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -29,6 +29,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Avance de Etapa 4 — Semana 12: pruebas unitarias que protegen reglas](#avance-de-etapa-4--semana-12-pruebas-unitarias-que-protegen-reglas)
 - [Semana 13: pruebas e2e y automatización de calidad (Sesiones 25 y 26)](#semana-13-pruebas-e2e-y-automatización-de-calidad-sesiones-25-y-26)
 - [Avance de Etapa 4 — Semana 13: calidad integrada y automatizada](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada)
+- [Semana 14: contrato OpenAPI, versionado e integración con un cliente (Sesiones 27 y 28)](#semana-14-contrato-openapi-versionado-e-integración-con-un-cliente-sesiones-27-y-28)
+- [Avance de Etapa 4 — Semana 14: contrato publicado e integración verificable](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -65,6 +67,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **CORS de NestJS (`app.enableCors`):** restricción de los orígenes web que pueden leer las respuestas de la API desde un navegador.
 - **Jest, `ts-jest` y `@types/jest`:** pruebas unitarias en TypeScript (`npm test`), cobertura (`npm run test:cov`) y pruebas end-to-end (`npm run test:e2e`).
 - **Supertest:** envía solicitudes HTTP reales a la aplicación Nest en las pruebas e2e.
+- **@nestjs/swagger:** genera el contrato OpenAPI a partir de los decoradores y publica la interfaz Swagger en `/docs` (solo fuera de producción).
+- **Versionado de NestJS (`enableVersioning`):** versionado por URI; las rutas de negocio se sirven bajo `/v1`.
 - **GitHub Actions:** flujo `quality` que instala dependencias con `npm ci`, ejecuta lint, pruebas unitarias, pruebas e2e y compilación.
 - **Vitest:** se usó al inicio del proyecto. Ya no ejecuta ningún comando (las pruebas unitarias y las e2e usan Jest); `vitest.config.ts` y `vitest.config.e2e.ts` se conservan sin uso.
 - **Thunder Client:** herramienta para probar los endpoints REST.
@@ -281,6 +285,7 @@ src/
 │   └── enrollments.service.ts
 │
 ├── app.module.ts
+├── app.setup.ts
 └── main.ts
 
 evidencias/
@@ -298,7 +303,8 @@ evidencias/
 ├── actuacion12/
 ├── actuacion13/
 ├── actuacion14/
-└── actuacion15/
+├── actuacion15/
+└── actuacion16/
 
 test/
 ├── helpers/
@@ -306,7 +312,13 @@ test/
 ├── setup-env.ts
 ├── app.e2e-spec.ts
 ├── auth.e2e-spec.ts
-└── courses.e2e-spec.ts
+├── courses.e2e-spec.ts
+└── openapi.e2e-spec.ts
+
+docs/
+└── postman/
+    ├── CourseHub-API.postman_collection.json
+    └── CourseHub-local.postman_environment.json
 
 .github/
 └── workflows/
@@ -1088,7 +1100,7 @@ Con JWT, cualquier usuario autenticado puede usar las rutas protegidas. Tener un
 
 ### 11. Rutas públicas y protegidas
 
-Estado vigente de las rutas (actualizado en la Semana 10):
+Estado vigente de las rutas (actualizado en la Semana 10). Desde la Semana 14 todas las rutas de negocio de esta tabla llevan el prefijo `/v1`; `GET /` y `GET /welcome` siguen sin versión:
 
 | Ruta | Acceso |
 |---|---|
@@ -2392,6 +2404,208 @@ Las capturas deben mostrar el resultado real obtenido. Antes de entregar, se deb
 
 La API se valida de punta a punta sin depender de datos manuales, y el equipo recibe una señal automática antes de integrar cambios.
 
+## Semana 14: contrato OpenAPI, versionado e integración con un cliente (Sesiones 27 y 28)
+
+Período de trabajo: Semana 14, Sesiones 27 y 28, Avance de la Etapa 4.
+
+**Resultado de aprendizaje:** publicar un contrato OpenAPI útil, versionar la API de manera explícita y validar su uso desde un cliente real.
+
+### Sesión 27 · OpenAPI y documentación de seguridad
+
+#### 1. Qué es el contrato
+
+OpenAPI es una descripción de la API independiente del lenguaje. NestJS la genera con `@nestjs/swagger` a partir de los decoradores de controladores y DTO. La documentación **no reemplaza las pruebas**: convierte el comportamiento acordado en un contrato que otras personas pueden verificar.
+
+#### 2. Cómo se publica
+
+| Elemento | Archivo | Descripción |
+|---|---|---|
+| Configuración del documento | `src/app.setup.ts` | `DocumentBuilder` con título, versión y `addBearerAuth()`; `SwaggerModule.createDocument` y `setup` |
+| Arranque | `src/main.ts` | Activa el versionado y, **solo si `NODE_ENV` no es `production`**, publica la interfaz |
+| Interfaz | `http://localhost:3000/docs` | Swagger UI |
+| Contrato en JSON | `http://localhost:3000/docs-json` | Documento OpenAPI descargable |
+
+La documentación no se publica en producción para no exponer la superficie de la API sin necesidad.
+
+#### 3. Qué documenta cada recurso
+
+- **Etiquetas:** `Autenticación`, `Cursos`, `Estudiantes`, `Matrículas` y `Sistema`.
+- **Entradas:** los DTO usan `@ApiProperty` y `@ApiPropertyOptional` con ejemplos, valores permitidos (`enum`) y límites (`minimum`, `maximum`). Las consultas paginadas documentan `page`, `limit`, `sortBy` y `order`.
+- **Salidas:** cada operación declara su respuesta de éxito (`CourseResponseDto`, `PaginatedCoursesResponseDto`, `LoginResponseDto`...).
+- **Errores:** el decorador `@ApiStandardErrors(...)` documenta los códigos relevantes con la forma uniforme `ErrorResponseDto` (`statusCode`, `error`, `message`, `path`, `timestamp`, `requestId`), que es exactamente lo que produce `HttpErrorFilter`. El contrato no describe trazas, consultas SQL ni detalles internos.
+- **Seguridad:** las rutas protegidas llevan `@ApiBearerAuth()`, por lo que Swagger muestra el candado y permite enviar el token con **Authorize**.
+
+| Ruta | Seguridad documentada | Errores documentados |
+|---|---|---|
+| `POST /v1/auth/register` | Pública | `400`, `409`, `429` |
+| `POST /v1/auth/login` | Pública (5 por minuto) | `400`, `401`, `429` |
+| `GET /v1/auth/me` | Bearer JWT | `401` |
+| `GET /v1/courses` y `GET /v1/courses/{id}` | Pública | `400`, `404` |
+| `POST /v1/courses` | Bearer JWT; `teacher` o `admin` | `400`, `401`, `403` |
+| `PATCH /v1/courses/{id}` | Bearer JWT; `admin` o `teacher` propietario | `400`, `401`, `403`, `404` |
+| `DELETE /v1/courses/{id}` | Bearer JWT; solo `admin` | `400`, `401`, `403`, `404` |
+| `/v1/students...` | Pública | `400`, `404`, `409` según la operación |
+| `/v1/enrollments...` | Bearer JWT en todas | `400`, `401`, `404`, `409` según la operación |
+
+`PartialType` de `UpdateCourseDto` se importa de `@nestjs/swagger` (no de `@nestjs/mapped-types`) para que el DTO de actualización conserve la documentación de los campos. El cuerpo de `PATCH /v1/students/{id}/status` se documenta con `@ApiBody` porque su tipo es un objeto literal; no se cambió su validación.
+
+#### 4. Comparar la documentación con solicitudes reales
+
+1. Iniciar la API con `npm run start:dev` y abrir `/docs`.
+2. Ejecutar `POST /v1/auth/login` desde **Try it out** y copiar el `accessToken`.
+3. Pulsar **Authorize** y pegar el token.
+4. Ejecutar `GET /v1/auth/me` y una operación protegida de cursos; comparar el código y el cuerpo recibidos con los documentados.
+5. Si hay una diferencia, se corrige el código o la documentación; no se deja una contradicción.
+
+La prueba `test/openapi.e2e-spec.ts` automatiza parte de esta comparación (véase el apartado 5).
+
+### Sesión 28 · Versionado e integración con un cliente
+
+#### 1. Versionado por URI
+
+`setupVersioning` (`src/app.setup.ts`) llama a `app.enableVersioning({ type: VersioningType.URI })` y cada controlador de negocio declara `version: '1'`:
+
+```typescript
+@Controller({ path: 'courses', version: '1' })
+export class CoursesController {}
+```
+
+La versión se aplica **antes** de generar el documento OpenAPI, de modo que la documentación refleja las rutas reales (`/v1/courses`). `GET /` (estado de la API) y `GET /welcome` (ruta de práctica, excluida del contrato) quedan sin versión.
+
+| Antes (Semana 13) | Ahora (Semana 14) |
+|---|---|
+| `/auth/login` | `/v1/auth/login` |
+| `/courses` | `/v1/courses` |
+| `/students/3/enrollments` | `/v1/students/3/enrollments` |
+| `/enrollments` | `/v1/enrollments` |
+
+#### 2. Cambios en el código
+
+- `src/app.setup.ts` (nuevo): versionado, documento OpenAPI y publicación de Swagger.
+- `src/main.ts`: usa las funciones anteriores.
+- Controladores de `auth`, `courses`, `students` y `enrollments`: `version: '1'` y decoradores de documentación.
+- DTO de entrada y de respuesta con `@ApiProperty`.
+- `src/common/dto/` y `src/common/swagger/`: `ErrorResponseDto`, `PaginationMetaDto` y `@ApiStandardErrors`.
+- `test/helpers/test-app.ts`: las pruebas e2e activan el mismo versionado que `main.ts`.
+- `test/courses.e2e-spec.ts` y `test/auth.e2e-spec.ts`: las solicitudes usan `/v1`.
+
+#### 3. Política de versionado
+
+- **Versión actual:** `v1`, visible en la ruta. Es la única versión publicada.
+- **Cambios compatibles** (no requieren nueva versión): añadir una ruta, añadir un campo opcional o añadir un valor documentado en una respuesta.
+- **Cambios incompatibles** (requieren una versión nueva, por ejemplo `/v2`): eliminar o renombrar una ruta o un campo, cambiar un código de estado o el significado de un campo, hacer obligatorio un campo antes opcional.
+- Una versión nueva se publica **junto** a la anterior, y el cambio se anuncia en este README y en el contrato antes de retirar la versión previa. No se retira una versión sin aviso.
+- **Límite:** no se promete compatibilidad retroactiva más allá de esta política, y no se generan clientes automáticamente.
+
+#### 4. Colección de solicitudes
+
+La colección está en `docs/postman/` y no contiene secretos:
+
+| Archivo | Contenido |
+|---|---|
+| `CourseHub-API.postman_collection.json` | 11 solicitudes con pruebas de respuesta |
+| `CourseHub-local.postman_environment.json` | Variables `baseUrl`, `studentEmail`, `password`, `token` y las opcionales del docente |
+
+Flujo principal:
+
+| Carpeta | Solicitud | Resultado esperado |
+|---|---|---|
+| 0. Contrato | `GET /docs-json` | `200` y rutas `/v1` publicadas |
+| 1. Registro e inicio de sesión | `POST /v1/auth/register` | `201`, rol `student` |
+| | `POST /v1/auth/login` | `200`; guarda el JWT en `token` |
+| | `GET /v1/auth/me` | `200` con Bearer |
+| 2. Lectura pública | `GET /v1/courses?page=1&limit=5` | `200`, `items` y `meta` |
+| | `GET /v1/courses/999999` | `404` con la forma uniforme de error |
+| | `GET /courses` (sin versión) | `404` |
+| 3. Escritura protegida | `POST /v1/courses` sin token | `401` |
+| | `POST /v1/courses` con token de estudiante | `403` (el cliente maneja el error de autorización) |
+| 4. Docente (opcional) | Login docente y `POST /v1/courses` | `201`, requiere una cuenta `teacher` local |
+
+Cómo usarla:
+
+1. Importar los dos archivos de `docs/postman/` (Postman; Thunder Client y otros clientes también importan este formato) y seleccionar el entorno **CourseHub · local**.
+2. Iniciar la API (`npm run start:dev`).
+3. Ejecutar la colección completa (Collection Runner en Postman) o solicitud por solicitud.
+4. Los scripts de prueba y el guardado automático del token funcionan en Postman. En un cliente que no ejecute esos scripts, copiar el `accessToken` de la respuesta de inicio de sesión a la variable `token` y ejecutar las solicitudes de a una.
+5. Las credenciales de la carpeta 4 se escriben solo en el entorno local, nunca en el repositorio.
+
+Límites a tener en cuenta: `POST /v1/auth/login` admite 5 solicitudes por minuto y la API 20 por minuto en total; la colección usa menos de 12, pero no conviene ejecutarla dos veces seguidas dentro del mismo minuto. La carpeta 0 requiere `NODE_ENV` distinto de `production`.
+
+#### 5. Pruebas del contrato
+
+`test/openapi.e2e-spec.ts` comprueba, contra la aplicación real y la base de pruebas:
+
+| Prueba | Qué comprueba |
+|---|---|
+| Rutas versionadas | El documento solo contiene rutas `/v1/...` (más `/`) |
+| Versión explícita | `GET /v1/courses` responde `200` y `GET /courses` responde `404` |
+| Esquema Bearer | El documento declara `http` + `bearer` + `JWT` |
+| Rutas protegidas | `POST /v1/courses` declara Bearer y las respuestas `201`, `400`, `401` y `403` |
+| Rutas públicas | Login, registro y `GET /v1/courses` no exigen token |
+| Documentación frente a comportamiento | La ruta protegida sin token responde `401` con la forma documentada |
+| Errores | `ErrorResponseDto` contiene `statusCode`, `error`, `message`, `path`, `timestamp` y `requestId` |
+| Sin secretos | Ningún esquema menciona `passwordHash` |
+
+### Cómo ejecutar las verificaciones de la Semana 14
+
+```bash
+npm install
+npm run lint
+npm test
+npm run test:e2e
+npm run build
+npm run start:dev
+```
+
+Con la API en marcha: abrir `http://localhost:3000/docs`, importar la colección de `docs/postman/` y ejecutarla.
+
+## Avance de Etapa 4 — Semana 14: contrato publicado e integración verificable
+
+Este avance reúne las Sesiones 27 y 28.
+
+| Requisito del avance | Estado | Dónde está |
+|---|---|---|
+| Swagger/OpenAPI describe los recursos principales, DTO y respuestas relevantes | Implementado | `src/app.setup.ts`, controladores y DTO; `/docs` |
+| Las rutas protegidas documentan Bearer JWT y los errores `401` y `403` | Implementado | `@ApiBearerAuth()` y `@ApiStandardErrors(...)` |
+| La API expone una versión explícita y la documentación coincide con sus rutas | Implementado | `version: '1'`, `setupVersioning` y `test/openapi.e2e-spec.ts` |
+| El repositorio contiene una colección con variables seguras para el flujo principal | Implementado | `docs/postman/` |
+| Una ejecución contra la API local demuestra que cliente y contrato coinciden | Implementado | Ejecución de la colección (evidencias E09 a E11) |
+
+El estado de cada requisito se confirma con las capturas de `evidencias/actuacion16/`, que deben mostrar los resultados reales de la ejecución.
+
+### Demostración
+
+Desde una colección nueva importada en el cliente:
+
+1. Registrar una cuenta (`POST /v1/auth/register`) o iniciar sesión (`POST /v1/auth/login`), y señalar en `/docs` dónde el contrato documenta cada paso.
+2. Leer un recurso (`GET /v1/courses`).
+3. Ejecutar una operación protegida (`POST /v1/courses`): sin token responde `401` y con un estudiante `403`, ambos documentados en el contrato.
+4. Mostrar que `GET /courses` (sin versión) responde `404`.
+
+### Evidencias del avance (`evidencias/actuacion16/`)
+
+| Código | Requisito o prueba | Qué muestra | Archivo |
+|---|---|---|---|
+| E01 | Compilación y conjuntos de pruebas | `npm run build`, `npm run lint`, `npm test` y `npm run test:e2e` sin fallos | `1. Compilación y pruebas arriba.png`, `1. Compilación y pruebas medio.png` y `1. Compilación y pruebas abajo.png` |
+| E02 | Configuración del contrato y del versionado | `src/app.setup.ts` y `src/main.ts` | `2. app.setup.png` y `2. main.png` |
+| E03 | Interfaz Swagger | `/docs` con las etiquetas y rutas `/v1` | `3. Swagger UI.png` |
+| E04 | Recurso, DTO y respuestas | Una operación de cursos desplegada con su cuerpo, respuesta de éxito y errores | `4. Recurso documentado.png` |
+| E05 | Seguridad documentada | Candado Bearer y respuestas `401` y `403` de `POST /v1/courses` | `5. Seguridad documentada.png` |
+| E06 | Documentación frente a solicitud real | Inicio de sesión, **Authorize** con el token y `GET /v1/auth/me` ejecutada desde Swagger (token oculto) | `6. Acceder a cuenta desde Swagger.png`, `6. Pegar token en Swagger.png`, `6. Solicitud desde Swagger.png` y `6. Solicitud desde Swagger (respuesta).png` |
+| E07 | Versionado | `GET /v1/courses` en `200` y `GET /courses` en `404` | `7. Versionado v1.png` y `7. Ruta sin versión.png` |
+| E08 | Contrato verificado con pruebas | `npm run test:e2e` con `openapi.e2e-spec.ts` en verde | `8. Pruebas del contrato.png` |
+| E09 | Colección importada | Las carpetas y solicitudes de la colección y las variables del entorno (token vacío) | `9. Colección importada.png` y `9. Entorno Thunder Client.png` |
+| E10 | Ejecución de la colección | Resultado de la ejecución completa contra la API local | `10. Ejecución de la colección.png` |
+| E11 | Error de autorización manejado por el cliente | El `401` sin token y el `403` de estudiante, con sus pruebas aprobadas | `11. Crear curso sin token (401).png` y `11. Crear curso con token de estudiante (403).png` |
+| E12 | Flujo de integración continua | GitHub Actions en verde con los pasos desplegados | `12. GitHub Actions en verde por fuera.png` y `12. GitHub Actions en verde por dentro.png` |
+| E13 | README | Vista previa de la sección de la Semana 14 | `13. README Semana 14.png` |
+
+Las capturas deben mostrar el resultado real obtenido. Antes de entregar, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
+### Criterio de éxito
+
+La interfaz pública de la API es comprensible, comprobable y no revela secretos ni detalles internos: una persona que no escribió la API puede hacer una solicitud válida y saber qué respuesta esperar.
+
 ## Modelo de datos
 
 El modelo académico principal relaciona tres entidades:
@@ -2486,6 +2700,8 @@ El campo `passwordHash` almacena el resultado de bcrypt, no la contraseña en te
 El campo `role` es una enumeración (`UserRole`). El registro público siempre crea cuentas con el rol `student`; los roles `teacher` y `admin` se asignan de forma controlada en la base de datos.
 
 ## Endpoints de estudiantes
+
+> **Desde la Semana 14** las rutas de negocio llevan el prefijo de versión `/v1` (por ejemplo, `/v1/students`). Las rutas sin versión ya no existen y responden `404`. Los ejemplos de esta sección conservan la ruta corta para facilitar la lectura. Véase la [política de versionado](#3-política-de-versionado).
 
 ### Endpoints disponibles
 
@@ -2600,6 +2816,8 @@ La eliminación está sujeta a las reglas de negocio implementadas.
 
 ## Endpoints de cursos
 
+> **Desde la Semana 14** las rutas de negocio llevan el prefijo de versión `/v1` (por ejemplo, `/v1/courses`). Las rutas sin versión ya no existen y responden `404`. Los ejemplos de esta sección conservan la ruta corta para facilitar la lectura. Véase la [política de versionado](#3-política-de-versionado).
+
 ### Endpoints disponibles
 
 | Método | Ruta | Descripción | Acceso |
@@ -2691,6 +2909,8 @@ Authorization: Bearer <token-jwt>
 La eliminación está reservada para el rol `admin`.
 
 ## Endpoints de matrículas
+
+> **Desde la Semana 14** las rutas de negocio llevan el prefijo de versión `/v1` (por ejemplo, `/v1/enrollments`). Las rutas sin versión ya no existen y responden `404`. Los ejemplos de esta sección conservan la ruta corta para facilitar la lectura. Véase la [política de versionado](#3-política-de-versionado).
 
 ### Endpoints disponibles
 
@@ -2795,6 +3015,8 @@ GET /enrollments
 ```
 
 ## Endpoints de usuarios y autenticación
+
+> **Desde la Semana 14** las rutas de negocio llevan el prefijo de versión `/v1` (por ejemplo, `/v1/auth/login`). Las rutas sin versión ya no existen y responden `404`. Los ejemplos de esta sección conservan la ruta corta para facilitar la lectura. Véase la [política de versionado](#3-política-de-versionado).
 
 ### Endpoints disponibles
 
@@ -3422,6 +3644,16 @@ evidencias/actuacion15/
 
 La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada). Documentan las pruebas e2e (ruta pública, ruta protegida y rechazos), la configuración y los datos exclusivos de prueba, la repetibilidad, el flujo de GitHub Actions y la demostración de un fallo controlado.
 
+### Evidencias de la Semana 14 — Sesiones 27 y 28 y Avance de Etapa 4
+
+Toda la Semana 14 comparte una sola carpeta de capturas:
+
+```text
+evidencias/actuacion16/
+```
+
+La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable). Documentan el contrato OpenAPI y su seguridad, el versionado `/v1`, la colección de solicitudes y su ejecución contra la API local, y los errores `401` y `403` manejados por el cliente.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -3659,6 +3891,13 @@ npm run test:e2e
 npm run build
 ```
 
+Consultar la documentación de la API con la aplicación en marcha (no disponible en producción):
+
+```text
+http://localhost:3000/docs        # interfaz Swagger
+http://localhost:3000/docs-json   # contrato OpenAPI en JSON
+```
+
 Los comandos disponibles dependen de los scripts declarados en `package.json`.
 
 ## Documentación oficial
@@ -3890,6 +4129,23 @@ Las funcionalidades incorporadas incluyen:
 Las evidencias de esta etapa se guardan en `evidencias/actuacion15/`. El detalle está en la sección [Semana 13](#semana-13-pruebas-e2e-y-automatización-de-calidad-sesiones-25-y-26) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada).
 
 Las pruebas, las capturas y el estado del repositorio deben reflejar los resultados reales de la implementación.
+
+### Avance de la Semana 14 — Sesiones 27 y 28
+
+Se publicó el contrato de la API y se versionó su interfaz.
+
+Las funcionalidades incorporadas incluyen:
+
+- Contrato OpenAPI con `@nestjs/swagger`: interfaz en `/docs` y JSON en `/docs-json`, solo fuera de producción.
+- Documentación de recursos, DTO de entrada y de respuesta, esquema Bearer JWT y errores `400`, `401`, `403`, `404`, `409` y `429` con la forma uniforme de `HttpErrorFilter`.
+- Versionado por URI: las rutas de negocio se sirven bajo `/v1` y la ruta sin versión responde `404`.
+- Política de versionado documentada.
+- Colección de solicitudes con variables seguras en `docs/postman/` para el flujo registro, inicio de sesión, lectura y escritura protegida.
+- Prueba e2e `openapi.e2e-spec.ts` que comprueba que el contrato coincide con las rutas reales.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion16/`. El detalle está en la sección [Semana 14](#semana-14-contrato-openapi-versionado-e-integración-con-un-cliente-sesiones-27-y-28) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable).
+
+No se generan clientes automáticamente ni se promete compatibilidad retroactiva más allá de la política de versionado.
 
 ## Licencia
 
