@@ -1,10 +1,13 @@
-import { IsIn, IsNotEmpty, IsString } from 'class-validator'; //1
+import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsNotEmpty, IsString } from 'class-validator';
 
-export class CreateCourseDto { //2
-    @IsString() //3
-    @IsNotEmpty() //4
+export class CreateCourseDto {
+    @ApiProperty({ example: 'Desarrollo Backend con NestJS', description: 'Título del curso' })
+    @IsString()
+    @IsNotEmpty()
     title: string;
 
-    @IsIn(['beginner', 'intermediate', 'advanced']) //5
+    @ApiProperty({ enum: ['beginner', 'intermediate', 'advanced'], example: 'intermediate' })
+    @IsIn(['beginner', 'intermediate', 'advanced'])
     level: string;
 }

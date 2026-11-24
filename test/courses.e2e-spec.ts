@@ -6,8 +6,9 @@ import { UserRole } from '../src/users/user-role.enum.js';
 import { createTestApp, resetDatabase, seedUser, tokenFor } from './helpers/test-app.js';
 
 /**
- * Presupuesto de solicitudes: el limitador global permite 20 por minuto y
- * cada archivo crea su propia aplicación. Este archivo envía 6, muy por debajo.
+ * El limitador de solicitudes (`@nestjs/throttler`) se sustituye por un mock
+ * en las pruebas e2e (`test/mocks/throttler.mock.ts`), por lo que su límite
+ * no interviene en este archivo.
  */
 describe('Cursos (e2e)', () => {
   let app: INestApplication;
@@ -25,7 +26,7 @@ describe('Cursos (e2e)', () => {
     await app.close();
   });
 
-  describe('ruta pública: GET /courses', () => {
+  describe('ruta pública: GET /v1/courses', () => {
     it('lista los cursos sin token y devuelve la paginación', async () => {
       await app.get(DataSource).getRepository(Course).save([
         { title: 'NestJS básico', level: 'beginner', createdByUserId: null },
@@ -33,7 +34,7 @@ describe('Cursos (e2e)', () => {
       ]);
 
       const { body } = await request(app.getHttpServer())
-        .get('/courses')
+        .get('/v1/courses')
         .expect(200);
 
       expect(body.items).toHaveLength(2);
@@ -42,24 +43,24 @@ describe('Cursos (e2e)', () => {
 
     it('responde 404 con la forma uniforme si el curso no existe', async () => {
       const { body } = await request(app.getHttpServer())
-        .get('/courses/999999')
+        .get('/v1/courses/999999')
         .expect(404);
 
       expect(body).toMatchObject({
         statusCode: 404,
         error: 'Not Found',
-        path: '/courses/999999',
+        path: '/v1/courses/999999',
       });
     });
   });
 
-  describe('ruta protegida: POST /courses', () => {
+  describe('ruta protegida: POST /v1/courses', () => {
     it('crea el curso (201) con un docente y registra quién lo creó', async () => {
       const teacher = await seedUser(app, 'docente@test.local', UserRole.TEACHER);
       const token = await tokenFor(app, teacher);
 
       const { body } = await request(app.getHttpServer())
-        .post('/courses')
+        .post('/v1/courses')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'Pruebas e2e', level: 'intermediate' })
         .expect(201);
@@ -81,7 +82,7 @@ describe('Cursos (e2e)', () => {
 
     it('rechaza con 401 si no se envía token', async () => {
       const { body } = await request(app.getHttpServer())
-        .post('/courses')
+        .post('/v1/courses')
         .send({ title: 'Sin token', level: 'beginner' })
         .expect(401);
 
@@ -93,7 +94,7 @@ describe('Cursos (e2e)', () => {
       const token = await tokenFor(app, student);
 
       await request(app.getHttpServer())
-        .post('/courses')
+        .post('/v1/courses')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'Sin permiso', level: 'beginner' })
         .expect(403);
@@ -109,7 +110,7 @@ describe('Cursos (e2e)', () => {
       const token = await tokenFor(app, teacher);
 
       const { body } = await request(app.getHttpServer())
-        .post('/courses')
+        .post('/v1/courses')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: '', level: 'experto' })
         .expect(400);

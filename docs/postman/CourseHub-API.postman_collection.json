@@ -1,0 +1,583 @@
+{
+  "info": {
+    "name": "CourseHub API · Semana 14",
+    "description": "Flujo principal de integración de CourseHub API (versión v1).\n\nVariables: `baseUrl`, `studentEmail`, `password`, `token` (y las opcionales de docente). No contiene secretos: el token se guarda en el entorno al iniciar sesión.\n\nLímites: 5 inicios de sesión y 20 solicitudes por minuto; no ejecutes la colección dos veces seguidas en el mismo minuto.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Contrato",
+      "description": "El cliente descarga el contrato publicado y comprueba que coincide con la API.",
+      "item": [
+        {
+          "name": "Contrato OpenAPI (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/docs-json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "docs-json"
+              ]
+            },
+            "description": "Solo disponible fuera de producción. Confirma que el contrato publica las rutas versionadas y el esquema Bearer.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const doc = pm.response.json();",
+                  "pm.test('El contrato publica rutas /v1', () => {",
+                  "  pm.expect(doc.paths).to.have.property('/v1/courses');",
+                  "  pm.expect(doc.paths).to.have.property('/v1/auth/login');",
+                  "});",
+                  "pm.test('Declara el esquema Bearer JWT', () => {",
+                  "  pm.expect(doc.components.securitySchemes.bearer.scheme).to.eql('bearer');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Registro e inicio de sesión",
+      "description": "Rutas públicas. Cada ejecución registra una cuenta nueva con rol student.",
+      "item": [
+        {
+          "name": "Registrar cuenta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Ruta pública. Si el correo ya existe responde 409: cambia `studentEmail` en el entorno.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Genera un correo único en cada ejecución (solo Postman).",
+                  "pm.environment.set('studentEmail', `alumno.${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rol student y sin contraseña ni hash', () => {",
+                  "  pm.expect(body.role).to.eql('student');",
+                  "  pm.expect(body).to.not.have.property('password');",
+                  "  pm.expect(body).to.not.have.property('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Ruta pública con límite de 5 solicitudes por minuto. Guarda el JWT en la variable `token`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Devuelve accessToken y usuario público', () => {",
+                  "  pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.user).to.not.have.property('passwordHash');",
+                  "});",
+                  "pm.environment.set('token', body.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar la identidad del token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Ruta protegida: requiere `Authorization: Bearer {{token}}`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Identidad coincide con la cuenta registrada', () => {",
+                  "  pm.expect(pm.response.json().email).to.eql(pm.environment.get('studentEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Lectura pública",
+      "description": "Rutas sin token. La respuesta de error conserva la forma uniforme.",
+      "item": [
+        {
+          "name": "Listar cursos (paginado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/courses?page=1&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "courses"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Ruta pública. Respuesta con `items` y `meta`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Estructura items + meta', () => {",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  pm.expect(body.meta).to.include.keys('total', 'page', 'limit', 'totalPages');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Curso inexistente (error 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/courses/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "courses",
+                "999999"
+              ]
+            },
+            "description": "El cliente recibe el error con la forma uniforme documentada en el contrato.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('Forma uniforme de error', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.statusCode).to.eql(404);",
+                  "  pm.expect(body.path).to.eql('/v1/courses/999999');",
+                  "  pm.expect(body).to.include.keys('error', 'message', 'timestamp', 'requestId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ruta sin versión (debe fallar)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "courses"
+              ]
+            },
+            "description": "La versión es explícita: la ruta sin `/v1` no existe.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404: la ruta sin versión no existe', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Escritura protegida",
+      "description": "POST /v1/courses requiere JWT y rol teacher o admin.",
+      "item": [
+        {
+          "name": "Crear curso sin token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "courses"
+              ]
+            },
+            "description": "Sin encabezado Authorization.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Curso sin token\",\n  \"level\": \"beginner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Mensaje del guard', () => pm.expect(pm.response.json().message).to.eql('Token de acceso requerido'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear curso con token de estudiante (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "courses"
+              ]
+            },
+            "description": "La cuenta registrada es student: tiene identidad válida pero no permiso. El cliente debe manejar el 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Curso de estudiante\",\n  \"level\": \"beginner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('Forma uniforme de error', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.statusCode).to.eql(403);",
+                  "  pm.expect(body).to.include.keys('error', 'message', 'path');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Docente (opcional)",
+      "description": "Requiere una cuenta teacher existente en tu base local. Rellena `teacherEmail` y `teacherPassword` solo en tu entorno local; no los subas al repositorio.",
+      "item": [
+        {
+          "name": "Iniciar sesión como docente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda el JWT del docente en `teacherToken`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{teacherEmail}}\",\n  \"password\": \"{{teacherPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('teacherEmail')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('teacherToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear curso como docente (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "courses"
+              ]
+            },
+            "description": "Operación protegida con permiso: el propietario se toma del token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Curso creado desde la colección\",\n  \"level\": \"intermediate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('teacherToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Curso con propietario asignado por el servidor', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.title).to.eql('Curso creado desde la colección');",
+                  "  pm.expect(body.createdByUserId).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

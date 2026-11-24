@@ -10,8 +10,9 @@ import {
 } from './helpers/test-app.js';
 
 /**
- * Presupuesto de solicitudes: `POST /auth/login` permite 5 por minuto por
- * aplicación. Este archivo envía 2 inicios de sesión y 2 registros.
+ * El limitador de solicitudes (`@nestjs/throttler`) se sustituye por un mock
+ * en las pruebas e2e (`test/mocks/throttler.mock.ts`), por lo que los límites
+ * de 20 y 5 solicitudes por minuto no se comprueban aquí.
  */
 describe('Autenticación (e2e)', () => {
   let app: INestApplication;
@@ -29,9 +30,9 @@ describe('Autenticación (e2e)', () => {
   });
 
   describe('rutas públicas', () => {
-    it('POST /auth/register crea la cuenta con rol student y sin exponer la contraseña', async () => {
+    it('POST /v1/auth/register crea la cuenta con rol student y sin exponer la contraseña', async () => {
       const { body } = await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ email: 'Nuevo@Test.local', password: TEST_PASSWORD })
         .expect(201);
 
@@ -40,20 +41,20 @@ describe('Autenticación (e2e)', () => {
       expect(body).not.toHaveProperty('passwordHash');
     });
 
-    it('POST /auth/register rechaza con 409 un correo ya registrado', async () => {
+    it('POST /v1/auth/register rechaza con 409 un correo ya registrado', async () => {
       await seedUser(app, 'repetido@test.local', UserRole.STUDENT);
 
       await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ email: 'repetido@test.local', password: TEST_PASSWORD })
         .expect(409);
     });
 
-    it('POST /auth/login devuelve 200 y un accessToken con credenciales válidas', async () => {
+    it('POST /v1/auth/login devuelve 200 y un accessToken con credenciales válidas', async () => {
       await seedUser(app, 'docente@test.local', UserRole.TEACHER);
 
       const { body } = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: 'docente@test.local', password: TEST_PASSWORD })
         .expect(200);
 
@@ -65,11 +66,11 @@ describe('Autenticación (e2e)', () => {
       expect(body.user).not.toHaveProperty('passwordHash');
     });
 
-    it('POST /auth/login rechaza con 401 una contraseña incorrecta', async () => {
+    it('POST /v1/auth/login rechaza con 401 una contraseña incorrecta', async () => {
       await seedUser(app, 'docente@test.local', UserRole.TEACHER);
 
       const { body } = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: 'docente@test.local', password: 'otra-clave-123' })
         .expect(401);
 
@@ -77,13 +78,13 @@ describe('Autenticación (e2e)', () => {
     });
   });
 
-  describe('ruta protegida: GET /auth/me', () => {
+  describe('ruta protegida: GET /v1/auth/me', () => {
     it('devuelve 200 y la identidad del token', async () => {
       const admin = await seedUser(app, 'admin@test.local', UserRole.ADMIN);
       const token = await tokenFor(app, admin);
 
       const { body } = await request(app.getHttpServer())
-        .get('/auth/me')
+        .get('/v1/auth/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -95,7 +96,7 @@ describe('Autenticación (e2e)', () => {
     });
 
     it('rechaza con 401 sin token', async () => {
-      await request(app.getHttpServer()).get('/auth/me').expect(401);
+      await request(app.getHttpServer()).get('/v1/auth/me').expect(401);
     });
 
     it('rechaza con 401 un token alterado', async () => {
@@ -103,7 +104,7 @@ describe('Autenticación (e2e)', () => {
       const token = await tokenFor(app, admin);
 
       await request(app.getHttpServer())
-        .get('/auth/me')
+        .get('/v1/auth/me')
         .set('Authorization', `Bearer ${token}x`)
         .expect(401);
     });
