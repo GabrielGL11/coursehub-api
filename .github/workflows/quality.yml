@@ -43,15 +43,15 @@ jobs:
       - name: Obtener el código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js 22
+      - name: Configurar Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
-      # Se fija la misma versión de npm utilizada para validar el lockfile localmente.
-      - name: Configurar npm 10.9.4
-        run: npm install --global npm@10.9.4
+      # Se fija la misma versión de npm con la que se generó el lockfile localmente.
+      - name: Configurar npm 11.17.0
+        run: npm install --global npm@11.17.0
 
       - name: Verificar versión de npm
         run: npm --version
