@@ -72,6 +72,7 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **GitHub Actions:** flujo `quality` que instala dependencias con `npm ci`, ejecuta lint, pruebas unitarias, pruebas e2e y compilación.
 - **Vitest:** se usó al inicio del proyecto. Ya no ejecuta ningún comando (las pruebas unitarias y las e2e usan Jest); `vitest.config.ts` y `vitest.config.e2e.ts` se conservan sin uso.
 - **Thunder Client:** herramienta para probar los endpoints REST.
+- **Postman:** cliente con el que se ejecuta la colección de la Semana 14 (`docs/postman/`), porque ejecuta los scripts de prueba de las respuestas.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
 
 ## Descripción del proyecto
@@ -2526,8 +2527,10 @@ Cómo usarla:
 1. Importar los dos archivos de `docs/postman/` (Postman; Thunder Client y otros clientes también importan este formato) y seleccionar el entorno **CourseHub · local**.
 2. Iniciar la API (`npm run start:dev`).
 3. Ejecutar la colección completa (Collection Runner en Postman) o solicitud por solicitud.
-4. Los scripts de prueba y el guardado automático del token funcionan en Postman. En un cliente que no ejecute esos scripts, copiar el `accessToken` de la respuesta de inicio de sesión a la variable `token` y ejecutar las solicitudes de a una.
+4. Los scripts de prueba y el guardado automático del token funcionan en Postman. Thunder Client, en su versión gratuita, no ejecuta los scripts (muestra 0/0 en Tests y un aviso de que esa función es de pago). En ese caso, copiar el `accessToken` de la respuesta de inicio de sesión a la variable `token` y ejecutar las solicitudes de a una.
 5. Las credenciales de la carpeta 4 se escriben solo en el entorno local, nunca en el repositorio.
+
+**Clientes usados en las evidencias.** La colección se importó primero en Thunder Client (E09). La ejecución completa y las pruebas de los errores `401` y `403` (E10 y E11) se realizaron en Postman, con el entorno **CourseHub · local**: 18 pruebas aprobadas y 0 fallidas. En esa ejecución las dos solicitudes de la carpeta 4 (docente) quedan sin respuesta, porque es opcional y requiere una cuenta `teacher` local.
 
 Límites a tener en cuenta: `POST /v1/auth/login` admite 5 solicitudes por minuto y la API 20 por minuto en total; la colección usa menos de 12, pero no conviene ejecutarla dos veces seguidas dentro del mismo minuto. La carpeta 0 requiere `NODE_ENV` distinto de `production`.
 
@@ -2569,7 +2572,7 @@ Este avance reúne las Sesiones 27 y 28.
 | Las rutas protegidas documentan Bearer JWT y los errores `401` y `403` | Implementado | `@ApiBearerAuth()` y `@ApiStandardErrors(...)` |
 | La API expone una versión explícita y la documentación coincide con sus rutas | Implementado | `version: '1'`, `setupVersioning` y `test/openapi.e2e-spec.ts` |
 | El repositorio contiene una colección con variables seguras para el flujo principal | Implementado | `docs/postman/` |
-| Una ejecución contra la API local demuestra que cliente y contrato coinciden | Implementado | Ejecución de la colección (evidencias E09 a E11) |
+| Una ejecución contra la API local demuestra que cliente y contrato coinciden | Implementado | Ejecución de la colección en Postman (E10 y E11); E09 muestra la importación en Thunder Client |
 
 El estado de cada requisito se confirma con las capturas de `evidencias/actuacion16/`, que deben mostrar los resultados reales de la ejecución.
 
@@ -2590,13 +2593,13 @@ Desde una colección nueva importada en el cliente:
 | E02 | Configuración del contrato y del versionado | `src/app.setup.ts` y `src/main.ts` | `2. app.setup.png` y `2. main.png` |
 | E03 | Interfaz Swagger | `/docs` con las etiquetas y rutas `/v1` | `3. Swagger UI.png` |
 | E04 | Recurso, DTO y respuestas | Una operación de cursos desplegada con su cuerpo, respuesta de éxito y errores | `4. Recurso documentado.png` |
-| E05 | Seguridad documentada | Candado Bearer y respuestas `401` y `403` de `POST /v1/courses` | `5. Seguridad documentada.png` |
-| E06 | Documentación frente a solicitud real | Inicio de sesión, **Authorize** con el token y `GET /v1/auth/me` ejecutada desde Swagger (token oculto) | `6. Acceder a cuenta desde Swagger.png`, `6. Pegar token en Swagger.png`, `6. Solicitud desde Swagger.png` y `6. Solicitud desde Swagger (respuesta).png` |
+| E05 | Seguridad documentada | Candado Bearer y respuestas `401` y `403` de `POST /v1/courses` | `5. Seguridad documentada.png` y `5. Seguridad documentada (candado).png` |
+| E06 | Documentación frente a solicitud real | Inicio de sesión, **Authorize** con el token y `GET /v1/auth/me` ejecutada desde Swagger (token difuminado) | `6. Acceder a cuenta desde Swagger.png`, `6. Pegar token en Swagger.png`, `6. Solicitud desde Swagger.png` y `6. Solicitud desde Swagger (respuesta).png` |
 | E07 | Versionado | `GET /v1/courses` en `200` y `GET /courses` en `404` | `7. Versionado v1.png` y `7. Ruta sin versión.png` |
 | E08 | Contrato verificado con pruebas | `npm run test:e2e` con `openapi.e2e-spec.ts` en verde | `8. Pruebas del contrato.png` |
-| E09 | Colección importada | Las carpetas y solicitudes de la colección y las variables del entorno (token vacío) | `9. Colección importada.png` y `9. Entorno Thunder Client.png` |
-| E10 | Ejecución de la colección | Resultado de la ejecución completa contra la API local | `10. Ejecución de la colección.png` |
-| E11 | Error de autorización manejado por el cliente | El `401` sin token y el `403` de estudiante, con sus pruebas aprobadas | `11. Crear curso sin token (401).png` y `11. Crear curso con token de estudiante (403).png` |
+| E09 | Colección importada | Las carpetas y solicitudes de la colección y las variables del entorno (token vacío), importadas en Thunder Client | `9. Colección importada.png` y `9. Entorno Thunder Client.png` |
+| E10 | Ejecución de la colección | Ejecución completa en Postman contra la API local: 18 pruebas aprobadas, 0 fallidas | `10. Ejecución de la colección.png` |
+| E11 | Error de autorización manejado por el cliente | El `401` sin token y el `403` de estudiante, con sus pruebas aprobadas (pestaña Test Results de Postman) | `11. Crear curso sin token (401).png` y `11. Crear curso con token de estudiante (403).png` |
 | E12 | Flujo de integración continua | GitHub Actions en verde con los pasos desplegados | `12. GitHub Actions en verde por fuera.png` y `12. GitHub Actions en verde por dentro.png` |
 | E13 | README | Vista previa de la sección de la Semana 14 | `13. README Semana 14.png` |
 
@@ -3652,7 +3655,7 @@ Toda la Semana 14 comparte una sola carpeta de capturas:
 evidencias/actuacion16/
 ```
 
-La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable). Documentan el contrato OpenAPI y su seguridad, el versionado `/v1`, la colección de solicitudes y su ejecución contra la API local, y los errores `401` y `403` manejados por el cliente.
+La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable). Documentan el contrato OpenAPI y su seguridad, el versionado `/v1`, la colección de solicitudes importada en Thunder Client y ejecutada en Postman contra la API local (con sus pruebas aprobadas), y los errores `401` y `403` manejados por el cliente.
 
 ### Pruebas funcionales
 
