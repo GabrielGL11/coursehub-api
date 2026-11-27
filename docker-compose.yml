@@ -1,0 +1,54 @@
+# Entorno de PRÁCTICA reproducible: API (imagen multietapa) + PostgreSQL desechable.
+#
+#   Copy-Item .env.docker.example .env.docker      # (PowerShell)  cp .env.docker.example .env.docker  # (bash)
+#   # edita .env.docker y escribe valores propios
+#   docker compose --env-file .env.docker up --build
+#
+# Este archivo NO contiene contraseñas ni secretos: todos los valores se leen de
+# `.env.docker`, que está en .gitignore. Si falta una variable obligatoria,
+# Compose se detiene con el mensaje indicado.
+name: coursehub
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:?Define DATABASE_USER en .env.docker}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Define DATABASE_PASSWORD en .env.docker}
+      POSTGRES_DB: ${DATABASE_NAME:?Define DATABASE_NAME en .env.docker}
+    volumes:
+      - coursehub-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # La base NO se publica en el equipo: solo la API la alcanza, por la red interna.
+
+  api:
+    build: .
+    image: coursehub-api:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_HOST_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${DATABASE_USER:?Define DATABASE_USER en .env.docker}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Define DATABASE_PASSWORD en .env.docker}
+      DATABASE_NAME: ${DATABASE_NAME:?Define DATABASE_NAME en .env.docker}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env.docker (mínimo 32 caracteres)}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      # Solo práctica: crea las tablas al iniciar. En producción real se usan migraciones.
+      DATABASE_SYNCHRONIZE: ${DATABASE_SYNCHRONIZE:-false}
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-20}
+
+volumes:
+  coursehub-db:

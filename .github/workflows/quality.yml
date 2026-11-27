@@ -71,6 +71,13 @@ jobs:
       - name: Compilar
         run: npm run build
 
+      # Semana 15: la API debe poder construirse como imagen Docker multietapa.
+      - name: Validar docker-compose.yml con las variables de ejemplo
+        run: docker compose --env-file .env.docker.example config --quiet
+
+      - name: Construir la imagen Docker
+        run: docker build --tag coursehub-api:ci .
+
       # Señal informativa: no bloquea la integración. Revisar el resultado antes de actualizar paquetes.
       - name: Auditoría de dependencias (npm audit)
         run: npm audit --omit=dev --audit-level=high

@@ -1,5 +1,6 @@
 import { VersioningType } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
@@ -13,6 +14,15 @@ export const DOCS_PATH = 'docs';
  */
 export function setupVersioning(app: INestApplication): void {
   app.enableVersioning({ type: VersioningType.URI });
+}
+
+/**
+ * Semana 15 · extensión WebSocket: usa Socket.IO como adaptador de la puerta de enlace.
+ * La usan `main.ts` y las pruebas e2e, para que ambas se comporten igual.
+ * Debe llamarse antes de `app.listen()` / `app.init()`.
+ */
+export function setupWebSockets(app: INestApplication): void {
+  app.useWebSocketAdapter(new IoAdapter(app));
 }
 
 /** Construye el contrato OpenAPI a partir de los decoradores de los controladores. */

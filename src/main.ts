@@ -2,7 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
-import { DOCS_PATH, setupSwagger, setupVersioning } from './app.setup.js';
+import { DOCS_PATH, setupSwagger, setupVersioning, setupWebSockets } from './app.setup.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -25,6 +25,9 @@ async function bootstrap() {
 
   // Versionado por URI (/v1/...). Debe ir antes de generar el documento OpenAPI.
   setupVersioning(app);
+
+  // Extensión de la Semana 15: notificaciones en tiempo real por WebSocket (Socket.IO).
+  setupWebSockets(app);
 
   const config = app.get(ConfigService);
   const port = config.getOrThrow<number>('PORT');

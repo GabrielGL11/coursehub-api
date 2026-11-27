@@ -13,6 +13,7 @@ import { StudentsModule } from './students/students.module.js';
 import { EnrollmentsModule } from './enrollments/enrollments.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware.js';
 import { HttpErrorFilter } from './common/filters/http-error.filter.js';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor.js';
@@ -33,15 +34,25 @@ import { TimingInterceptor } from './common/interceptors/timing.interceptor.js';
         DATABASE_NAME: Joi.string().required(),
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_EXPIRES_IN: Joi.string().default('15m'),
+        // Semana 15: ajustes de despliegue. Los valores por defecto son los seguros.
+        DATABASE_SYNCHRONIZE: Joi.boolean().default(false),
+        THROTTLE_TTL_MS: Joi.number().integer().min(1000).default(60_000),
+        THROTTLE_LIMIT: Joi.number().integer().min(1).default(20),
       }),
     }),
 
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 20,
-      },
-    ]),
+    // Límite de solicitudes por IP. Por defecto 20 por minuto; se puede ajustar
+    // con THROTTLE_LIMIT / THROTTLE_TTL_MS (por ejemplo, solo en la prueba de carga local).
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: Number(config.getOrThrow('THROTTLE_TTL_MS')),
+          limit: Number(config.getOrThrow('THROTTLE_LIMIT')),
+        },
+      ],
+    }),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -54,7 +65,11 @@ import { TimingInterceptor } from './common/interceptors/timing.interceptor.js';
         password: config.getOrThrow<string>('DATABASE_PASSWORD'),
         database: config.getOrThrow<string>('DATABASE_NAME'),
         autoLoadEntities: true,
-        synchronize: config.get<string>('NODE_ENV') === 'development',
+        // Solo en desarrollo, o si se activa de forma explícita en un entorno de práctica.
+        // En producción real el esquema se gestiona con migraciones (fuera del alcance del curso).
+        synchronize:
+          config.get<string>('NODE_ENV') === 'development' ||
+          String(config.get('DATABASE_SYNCHRONIZE')) === 'true',
       }),
     }),
 
@@ -63,6 +78,7 @@ import { TimingInterceptor } from './common/interceptors/timing.interceptor.js';
     EnrollmentsModule,
     UsersModule,
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [AppController, WelcomeController],
   providers: [

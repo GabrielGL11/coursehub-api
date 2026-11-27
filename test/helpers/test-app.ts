@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module.js';
-import { setupVersioning } from '../../src/app.setup.js';
+import { setupVersioning, setupWebSockets } from '../../src/app.setup.js';
 import { User } from '../../src/users/entities/user.entity.js';
 import { UserRole } from '../../src/users/user-role.enum.js';
 
@@ -51,6 +51,9 @@ export async function createTestApp(): Promise<INestApplication> {
 
   // Versionado por URI (/v1/...): igual que en `src/main.ts`.
   setupVersioning(app);
+
+  // Extensión WebSocket de la Semana 15: igual que en `src/main.ts`.
+  setupWebSockets(app);
 
   await app.init();
 

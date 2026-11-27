@@ -1,0 +1,28 @@
+# Dependencias y resultados locales: se reconstruyen dentro de la imagen.
+node_modules
+dist
+coverage
+*.tsbuildinfo
+
+# Secretos y configuración local: NUNCA deben entrar en una imagen.
+.env
+.env.*
+!.env.example
+!.env.test.example
+!.env.docker.example
+
+# Control de versiones, editor y documentación que la API no necesita para ejecutarse.
+.git
+.github
+.vscode
+.idea
+evidencias
+docs
+test
+README.md
+*.log
+
+# Archivos del propio Docker.
+Dockerfile
+docker-compose.yml
+.dockerignore

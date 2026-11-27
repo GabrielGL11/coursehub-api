@@ -6,6 +6,7 @@ import { Enrollment } from './entities/enrollment.entity.js';
 import { StudentsModule } from '../students/students.module.js';
 import { CoursesModule } from '../courses/courses.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { AuthModule } from '../auth/auth.module.js';
     StudentsModule,
     CoursesModule,
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [EnrollmentsController],
   providers: [EnrollmentsService],

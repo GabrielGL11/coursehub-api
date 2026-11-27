@@ -6,6 +6,7 @@ import { CoursesService } from '../courses/courses.service.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
 import { EnrollmentsQueryDto } from './dto/enrollments-query.dto.js';
 import { Enrollment } from './entities/enrollment.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class EnrollmentsService {
@@ -14,6 +15,7 @@ export class EnrollmentsService {
     private readonly enrollmentsRepository: Repository<Enrollment>,
     private readonly studentsService: StudentsService,
     private readonly coursesService: CoursesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -49,7 +51,19 @@ export class EnrollmentsService {
       course,
     });
 
-    return this.enrollmentsRepository.save(enrollment);
+    const saved = await this.enrollmentsRepository.save(enrollment);
+
+    // Extensión de la Semana 15: avisa en tiempo real. El aviso nunca hace fallar
+    // la matrícula (NotificationsService captura sus propios errores) y solo lleva
+    // identificadores, sin datos personales.
+    this.notificationsService.enrollmentCreated({
+      enrollmentId: saved.id,
+      studentId: student.id,
+      courseId: course.id,
+      occurredAt: new Date().toISOString(),
+    });
+
+    return saved;
   }
 
   async findAll(query: EnrollmentsQueryDto) {
