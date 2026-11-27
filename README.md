@@ -6,7 +6,7 @@
   </a>
 </p>
 
-API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); Desde la Semana 13 (Sesión 25) las pruebas end-to-end también usan **Jest y Supertest** (`npm run test:e2e`) contra una base de datos exclusiva de pruebas, y en la Sesión 26 un flujo de **GitHub Actions** ejecuta el análisis estático, las pruebas y la compilación con cada cambio. Vitest ya no ejecuta ningún comando del proyecto. Desde la Semana 14 (Sesiones 27 y 28) la API publica su contrato **OpenAPI** con Swagger (`/docs`), expone las rutas de negocio con **versionado por URI** (`/v1/...`) y se acompaña de una colección de solicitudes que demuestra el flujo principal de integración.
+API REST desarrollada con **NestJS, TypeScript, PostgreSQL y TypeORM** para gestionar estudiantes, cursos y matrículas académicas. El proyecto incorpora configuración mediante variables de entorno, validaciones, consultas con filtros, búsqueda, paginación, ordenamiento y autenticación de usuarios mediante contraseñas con bcrypt, tokens JWT y protección de rutas mediante un guard de NestJS. Desde la Semana 10 (Sesión 19) incorpora además autorización basada en roles (RBAC) y control de propiedad sobre los cursos, y (Sesión 20) controles de seguridad para una API pública: CORS restringido, limitación de solicitudes y requisito de HTTPS/TLS en producción. Desde la Semana 11 (Sesión 21) incorpora componentes transversales centralizados: middleware de registro de solicitudes, filter global de errores, interceptor de tiempo de respuesta y `ParseIntPipe` en los parámetros numéricos. En la Sesión 22 la regla de actualización de cursos se separa en un caso de uso (`UpdateCourseUseCase`) que depende de un contrato de repositorio pequeño y de un adaptador TypeORM. Desde la Semana 12 (Sesión 23) la regla de propiedad se comprueba con pruebas unitarias que usan un repositorio simulado, sin HTTP ni PostgreSQL. En la Sesión 24 se añaden pruebas del controlador (delegación de identificador, DTO e identidad autenticada), pruebas de la autorización por rol y un informe de cobertura para detectar ramas sin ejercitar. Las pruebas unitarias se ejecutan con **Jest** (se escribieron primero con Vitest y se migraron a Jest sin cambiar la lógica de negocio ni los casos de prueba); Desde la Semana 13 (Sesión 25) las pruebas end-to-end también usan **Jest y Supertest** (`npm run test:e2e`) contra una base de datos exclusiva de pruebas, y en la Sesión 26 un flujo de **GitHub Actions** ejecuta el análisis estático, las pruebas y la compilación con cada cambio. Vitest ya no ejecuta ningún comando del proyecto. Desde la Semana 14 (Sesiones 27 y 28) la API publica su contrato **OpenAPI** con Swagger (`/docs`), expone las rutas de negocio con **versionado por URI** (`/v1/...`) y se acompaña de una colección de solicitudes que demuestra el flujo principal de integración. Desde la Semana 15 (Sesiones 29 y 30) se empaqueta en una imagen Docker multietapa con configuración externa, se mide con una carga básica y suma una única extensión mínima de notificaciones en tiempo real mediante WebSocket.
 
 Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backend Web con NestJS**.
 
@@ -31,6 +31,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - [Avance de Etapa 4 — Semana 13: calidad integrada y automatizada](#avance-de-etapa-4--semana-13-calidad-integrada-y-automatizada)
 - [Semana 14: contrato OpenAPI, versionado e integración con un cliente (Sesiones 27 y 28)](#semana-14-contrato-openapi-versionado-e-integración-con-un-cliente-sesiones-27-y-28)
 - [Avance de Etapa 4 — Semana 14: contrato publicado e integración verificable](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable)
+- [Semana 15: imagen Docker, carga básica y extensión en tiempo real (Sesiones 29 y 30)](#semana-15-imagen-docker-carga-básica-y-extensión-en-tiempo-real-sesiones-29-y-30)
+- [Avance de Etapa 4 — Semana 15: despliegue reproducible y extensión mínima](#avance-de-etapa-4--semana-15-despliegue-reproducible-y-extensión-mínima)
 - [Modelo de datos](#modelo-de-datos)
 - [Endpoints de estudiantes](#endpoints-de-estudiantes)
 - [Endpoints de cursos](#endpoints-de-cursos)
@@ -71,6 +73,8 @@ Este proyecto forma parte de las prácticas de la asignatura **Desarrollo Backen
 - **Versionado de NestJS (`enableVersioning`):** versionado por URI; las rutas de negocio se sirven bajo `/v1`.
 - **GitHub Actions:** flujo `quality` que instala dependencias con `npm ci`, ejecuta lint, pruebas unitarias, pruebas e2e y compilación.
 - **Vitest:** se usó al inicio del proyecto. Ya no ejecuta ningún comando (las pruebas unitarias y las e2e usan Jest); `vitest.config.ts` y `vitest.config.e2e.ts` se conservan sin uso.
+- **Docker y Docker Compose:** imagen multietapa de la API (`Dockerfile`) y entorno reproducible con PostgreSQL (`docker-compose.yml`).
+- **@nestjs/websockets, @nestjs/platform-socket.io y socket.io-client:** extensión mínima de notificaciones en tiempo real (`enrollment.created`) y cliente de prueba.
 - **Thunder Client:** herramienta para probar los endpoints REST.
 - **Postman:** cliente con el que se ejecuta la colección de la Semana 14 (`docs/postman/`), porque ejecuta los scripts de prueba de las respuestas.
 - **pgAdmin:** herramienta para administrar y verificar PostgreSQL.
@@ -305,7 +309,8 @@ evidencias/
 ├── actuacion13/
 ├── actuacion14/
 ├── actuacion15/
-└── actuacion16/
+├── actuacion16/
+└── actuacion17/
 
 test/
 ├── helpers/
@@ -328,7 +333,11 @@ docs/
 .env
 .env.example
 .env.test.example
+.env.docker.example
 .gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
 jest.config.ts
 jest.config.e2e.ts
 tsconfig.e2e.json
@@ -2609,6 +2618,367 @@ Las capturas deben mostrar el resultado real obtenido. Antes de entregar, se deb
 
 La interfaz pública de la API es comprensible, comprobable y no revela secretos ni detalles internos: una persona que no escribió la API puede hacer una solicitud válida y saber qué respuesta esperar.
 
+## Semana 15: imagen Docker, carga básica y extensión en tiempo real (Sesiones 29 y 30)
+
+Período de trabajo: Semana 15, Sesiones 29 y 30, Avance de la Etapa 4.
+
+**Resultado de aprendizaje:** empaquetar la API en una imagen reproducible con configuración externa, medir su comportamiento con una carga básica en un entorno autorizado y añadir una única extensión mínima con su prueba y su documentación.
+
+### Sesión 29 · Imagen Docker y configuración externa
+
+#### 1. Imagen multietapa
+
+El `Dockerfile` construye la API en dos etapas, de modo que la imagen final no lleva herramientas de compilación ni dependencias de desarrollo:
+
+| Etapa | Base | Qué hace |
+|---|---|---|
+| `build` | `node:24` | Instala todas las dependencias con `npm ci` y compila TypeScript (`npm run build`). Nada de esta etapa llega a la imagen final, salvo la carpeta `dist` |
+| `runtime` | `node:24-slim` | Instala solo las dependencias de producción (`npm ci --omit=dev`), copia `dist` desde la etapa `build` y arranca `node dist/main.js` |
+
+Decisiones de la imagen:
+
+- La versión de npm se fija en las dos etapas, con la misma con la que se generó `package-lock.json` (véase `quality.yml`).
+- Se declara `NODE_ENV=production` y `PORT=3000`.
+- El contenedor se ejecuta con un usuario sin privilegios (`USER node`).
+- **La imagen no contiene secretos**: ni `DATABASE_*` ni `JWT_SECRET`. Se inyectan al ejecutar el contenedor.
+- `HEALTHCHECK` consulta `GET /` (ruta pública que responde `200` cuando la API está en línea) cada 30 segundos, con 20 segundos de arranque, 5 de tiempo de espera y 3 reintentos.
+- `EXPOSE 3000`.
+
+Construcción:
+
+```powershell
+docker compose --env-file .env.docker build
+docker images coursehub-api
+```
+
+El resultado es la imagen `coursehub-api:local`. En la construcción documentada, `docker images` informó 604 MB de uso en disco y 117 MB de contenido.
+
+#### 2. `.dockerignore`
+
+Mantiene fuera del contexto de construcción lo que no debe entrar en la imagen:
+
+| Grupo | Archivos excluidos |
+|---|---|
+| Dependencias y resultados locales | `node_modules`, `dist`, `coverage`, `*.tsbuildinfo` (se reconstruyen dentro de la imagen) |
+| Secretos y configuración local | `.env` y `.env.*`, con excepción de `.env.example`, `.env.test.example` y `.env.docker.example` |
+| Control de versiones, editor y documentación | `.git`, `.github`, `.vscode`, `.idea`, `evidencias`, `docs`, `test`, `README.md`, `*.log` |
+| Archivos del propio Docker | `Dockerfile`, `docker-compose.yml`, `.dockerignore` |
+
+#### 3. Docker Compose
+
+`docker-compose.yml` levanta la API y una base PostgreSQL desechable de práctica:
+
+| Servicio | Imagen | Detalles |
+|---|---|---|
+| `db` | `postgres:16` | Volumen `coursehub-db`, comprobación de salud con `pg_isready` y **sin puerto publicado en el equipo**: solo la API la alcanza, por la red interna |
+| `api` | `coursehub-api:local` (construida desde este repositorio) | Espera a que `db` esté en estado `healthy` (`depends_on` con `service_healthy`) y publica el puerto `API_HOST_PORT` (3000 por defecto) hacia el 3000 del contenedor |
+
+Ambos servicios usan `restart: unless-stopped`.
+
+#### 4. Variables y secretos externos
+
+Los valores no están en el repositorio: `docker-compose.yml` solo contiene referencias `${...}` y las variables se leen de `.env.docker`, que se crea a partir de `.env.docker.example` y está excluido de Git.
+
+| Variable | Obligatoria | Descripción | Valor por defecto o de ejemplo |
+|---|---|---|---|
+| `DATABASE_USER` | Sí | Usuario de PostgreSQL | `coursehub` (ejemplo) |
+| `DATABASE_PASSWORD` | Sí | Contraseña de PostgreSQL | Marcador en `.env.docker.example`; se escribe localmente |
+| `DATABASE_NAME` | Sí | Nombre de la base de datos | `coursehub` (ejemplo) |
+| `JWT_SECRET` | Sí | Secreto de firma de los JWT; mínimo 32 caracteres | Marcador; se genera localmente |
+| `JWT_EXPIRES_IN` | No | Vigencia del token | `15m` |
+| `API_HOST_PORT` | No | Puerto del equipo donde se publica la API (dentro del contenedor siempre es 3000) | `3000` |
+| `DATABASE_SYNCHRONIZE` | No | Crea las tablas al iniciar. En el compose es `false` por defecto; `.env.docker.example` lo pone en `true` **solo para la práctica**, porque este curso no usa migraciones. En un despliegue real debe ser `false` | `false` |
+| `THROTTLE_TTL_MS` | No | Ventana del limitador, en milisegundos | `60000` |
+| `THROTTLE_LIMIT` | No | Solicitudes por IP dentro de la ventana. Se deja en 20 salvo durante la prueba de carga local | `20` |
+
+Las variables obligatorias se declaran con la forma `${VARIABLE:?mensaje}`: si falta alguna, Compose se detiene e indica cuál. Para generar un `JWT_SECRET` propio:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+#### 5. Guía reproducible para ejecutar la aplicación y sus dependencias
+
+1. Crear la configuración local y editarla (contraseña de la base, `JWT_SECRET` propio de 32 o más caracteres y `DATABASE_SYNCHRONIZE=true`):
+
+```powershell
+Copy-Item .env.docker.example .env.docker
+```
+
+2. Construir y levantar:
+
+```powershell
+docker compose --env-file .env.docker build
+docker compose --env-file .env.docker up -d
+docker compose --env-file .env.docker ps
+```
+
+`db` y `api` deben aparecer en estado `healthy` (la API tarda unos segundos en pasar la comprobación).
+
+3. Comprobar la API:
+
+```powershell
+curl.exe -i http://localhost:3000/
+curl.exe -i http://localhost:3000/v1/courses
+curl.exe -i http://localhost:3000/docs
+```
+
+| Solicitud | Resultado esperado |
+|---|---|
+| `GET /` | `200 OK` |
+| `GET /v1/courses` | `200 OK` con `items` y `meta` |
+| `GET /docs` | `404 Not Found`: el contenedor corre en producción y la documentación Swagger no se publica. Para verla se usa `npm run start:dev` |
+
+4. Detener (con `-v` además se borra el volumen de la base):
+
+```powershell
+docker compose --env-file .env.docker down
+docker compose --env-file .env.docker down -v
+```
+
+Problemas frecuentes:
+
+| Síntoma | Causa y solución |
+|---|---|
+| Compose se detiene pidiendo una variable | Falta en `.env.docker`; el mensaje dice cuál |
+| `/v1/courses` responde `500` | Las tablas no se crean solas en producción: comprobar `DATABASE_SYNCHRONIZE=true` en `.env.docker`. Si se cambió la contraseña de la base después de la primera ejecución, usar `down -v` y volver a levantar |
+| `/docs` responde `404` | Es lo esperado dentro del contenedor |
+| Cambié `.env.docker` y la API no lo toma | Recrear el contenedor: `docker compose --env-file .env.docker up -d --force-recreate api` |
+
+### Sesión 30 · Carga básica y extensión mínima
+
+#### 6. Carga básica en un entorno autorizado
+
+La carga se ejecuta **solo contra la instancia local propia** (la API del contenedor en `localhost`), nunca contra servicios de terceros. El script `scripts/load-test.mjs` (comando `npm run load:test`) envía 200 solicitudes con concurrencia 10 a `GET /v1/courses` sin token y publica un informe en JSON con duración, solicitudes por segundo, estados HTTP y latencias (mínima, promedio, p50, p95, p99 y máxima).
+
+El destino, el token y la etiqueta del escenario se pueden cambiar con las variables `LOAD_URL`, `LOAD_TOKEN` y `LOAD_LABEL`:
+
+```powershell
+# Escenario A: límite por defecto (THROTTLE_LIMIT=20)
+npm run load:test
+
+# Escenario B: límite ampliado (THROTTLE_LIMIT=5000 en .env.docker y recrear la API)
+$env:LOAD_LABEL="B: limite ampliado"; npm run load:test
+
+# Al terminar: restaurar THROTTLE_LIMIT=20, recrear la API y limpiar las variables
+Remove-Item Env:LOAD_URL, Env:LOAD_TOKEN, Env:LOAD_LABEL -ErrorAction SilentlyContinue
+```
+
+**Resultados** (200 solicitudes, concurrencia 10, `GET /v1/courses` sin token):
+
+| Escenario | Solicitudes/s | Respuestas `200` | Respuestas `429` | p50 | p95 | p99 | Máx. |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A: límite por defecto (20 por minuto) | 874,2 | 15 (7,5 %) | 185 | 7,5 ms | 31,6 ms | 90,5 ms | 114,7 ms |
+| B: límite ampliado (5000 por minuto) | 774,6 | 200 (100 %) | 0 | 10,4 ms | 26,0 ms | 60,1 ms | 67,9 ms |
+
+Latencia mínima y promedio: A, 2,5 ms y 11,3 ms; B, 5,8 ms y 12,7 ms.
+
+**Observaciones:**
+
+- **Escenario A:** 185 de las 200 solicitudes recibieron `429 Too Many Requests`. Es el limitador de solicitudes funcionando con el límite por defecto; este escenario demuestra el control, no mide la latencia real de la ruta, porque la mayoría de las respuestas son rechazos inmediatos.
+- **Escenario B:** con el límite ampliado todas las solicitudes terminaron en `200`, y esta es la medición que describe el comportamiento de la ruta: p50 de 10,4 ms y p99 de 60,1 ms.
+- Los dos escenarios tuvieron una duración inferior a 0,3 segundos, y los valores corresponden a una corrida por escenario. Para ver la variación entre corridas se repite cada escenario y se anotan los resultados en `docs/carga-basica.md`.
+- La medición se hizo con la tabla de cursos vacía, de modo que mide el recorrido HTTP y una consulta básica, no consultas con muchos datos.
+- Cliente, API y base de datos corren en el mismo equipo, así que las cifras sirven como referencia relativa y no como capacidad de producción. No se hizo una prueba de estrés ni de carga sostenida.
+- El límite se sube **solo para medir** y se restaura a 20 al terminar.
+
+#### 7. Extensión mínima: notificaciones en tiempo real (WebSocket)
+
+Se añadió **una sola extensión**: cuando se crea una matrícula por la API REST, los clientes conectados reciben un evento en tiempo real.
+
+| Elemento | Detalle |
+|---|---|
+| Tecnología | `@nestjs/websockets` y `@nestjs/platform-socket.io` (Socket.IO) |
+| Dirección | Namespace `/notifications` en el mismo puerto de la API (`http://localhost:3000/notifications`) |
+| Evento | `enrollment.created` |
+| Contenido del evento | `enrollmentId`, `studentId`, `courseId` y `occurredAt` |
+| Autenticación | La conexión exige un JWT válido; sin token o con un token inválido se rechaza con `No autorizado` |
+| Cuándo se emite | Solo cuando la matrícula se crea con éxito. Una matrícula rechazada (por ejemplo, un duplicado) no emite nada |
+| Cliente de prueba | `scripts/ws-client.mjs` (comando `npm run ws:client`), que toma el token de la variable `WS_TOKEN` |
+
+El servicio de notificaciones no expone datos de las personas más allá de los identificadores. Si el envío falla, se registra una advertencia en el log de la API.
+
+Ejemplo de lo que muestra el cliente al recibir el evento:
+
+```text
+Conectado a http://localhost:3000/notifications (id ...). Esperando eventos…
+enrollment.created  {"enrollmentId":1,"studentId":1,"courseId":1,"occurredAt":"2026-11-27T22:23:48.784Z"}
+```
+
+Con un token falso:
+
+```text
+No se pudo conectar: No autorizado
+```
+
+**Pruebas de la extensión.** `test/notifications.e2e-spec.ts` (Jest y Supertest, con un cliente `socket.io-client` contra la aplicación real) comprueba 5 casos, y `src/notifications/notifications.gateway.spec.ts` cubre el gateway con pruebas unitarias:
+
+| Grupo | Prueba |
+|---|---|
+| Control de acceso | Rechaza la conexión sin token |
+| Control de acceso | Rechaza un token inválido |
+| Control de acceso | Acepta un token válido |
+| Evento `enrollment.created` | Llega al cliente conectado cuando se crea una matrícula por la API REST |
+| Evento `enrollment.created` | No se emite si la matrícula se rechaza (por ejemplo, un duplicado) |
+
+Para ejecutarlas por separado:
+
+```powershell
+npm run test:e2e -- notifications
+```
+
+#### 8. Cómo iniciarlo y comprobarlo
+
+Con la API en el contenedor (sección 5) y dos terminales de PowerShell abiertas una junto a la otra. Los marcadores entre `< >` se sustituyen por valores de práctica propios.
+
+1. **Registrar una cuenta de práctica y subirla a `teacher`** (crear cursos exige ese rol):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/v1/auth/register -ContentType "application/json" -Body '{"email":"<correo-de-prueba>","password":"<clave-de-prueba>"}'
+
+docker compose --env-file .env.docker exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'
+```
+
+Dentro de `psql`:
+
+```sql
+UPDATE users SET role = 'teacher' WHERE email = '<correo-de-prueba>';
+\q
+```
+
+Debe responder `UPDATE 1`. El registro se hace antes del `UPDATE`; si la tabla está vacía, el `UPDATE` responde `UPDATE 0`.
+
+2. **Iniciar sesión sin imprimir el token** (después del `UPDATE`, para que el token lleve el rol):
+
+```powershell
+$r = Invoke-RestMethod -Method Post -Uri http://localhost:3000/v1/auth/login -ContentType "application/json" -Body '{"email":"<correo-de-prueba>","password":"<clave-de-prueba>"}'
+$env:WS_TOKEN = $r.accessToken
+$h = @{ Authorization = "Bearer $($r.accessToken)" }
+```
+
+3. **Terminal 2: cliente WebSocket** (queda esperando eventos):
+
+```powershell
+Clear-Host
+npm run ws:client
+```
+
+4. **Terminal 1: crear el curso, el estudiante y la matrícula** (la matrícula dispara el evento):
+
+```powershell
+Clear-Host
+$curso = Invoke-RestMethod -Method Post -Uri http://localhost:3000/v1/courses -Headers $h -ContentType "application/json" -Body (@{ title = "Desarrollo Backend con NestJS"; level = "intermediate" } | ConvertTo-Json)
+$est = Invoke-RestMethod -Method Post -Uri http://localhost:3000/v1/students -Headers $h -ContentType "application/json" -Body (@{ name = "Carlos Mendoza"; email = "carlos.mendoza@example.edu"; age = 22; career = "Software"; semester = 5; isActive = $true } | ConvertTo-Json)
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/v1/enrollments -Headers $h -ContentType "application/json" -Body (@{ studentId = $est.id; courseId = $curso.id } | ConvertTo-Json)
+```
+
+El cliente de la terminal 2 debe mostrar `enrollment.created`.
+
+5. **Conexión rechazada:** con un token falso el cliente no se conecta.
+
+```powershell
+$env:WS_TOKEN="token-falso"; npm run ws:client
+```
+
+6. **Limpiar** la variable al terminar: `Remove-Item Env:WS_TOKEN`.
+
+#### 9. Integración continua
+
+El flujo `.github/workflows/quality.yml` incorpora, en el trabajo **Verificar**, dos pasos para la Sesión 29: validar `docker-compose.yml` (con valores de prueba, sin secretos reales) y construir la imagen Docker. Así un cambio que rompa el `Dockerfile` o el compose se detecta antes de integrarlo, junto con el lint, las pruebas unitarias, las pruebas e2e y la compilación de las semanas anteriores.
+
+#### 10. Verificaciones de la semana
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run build` | Finalizó correctamente |
+| `npm run lint` | 0 advertencias y 0 errores (85 archivos) |
+| `npm test` | 17 suites y 81 pruebas aprobadas |
+| `npm run test:e2e` | 5 suites y 27 pruebas aprobadas (incluye las 5 de `notifications`) |
+| `docker compose build` | Imagen `coursehub-api:local` construida |
+| `docker compose ps` | `db` y `api` en `healthy` |
+
+#### 11. Cuidados de seguridad
+
+- `.env.docker` nunca se sube a Git; en el repositorio solo viven `.env.example`, `.env.test.example` y `.env.docker.example`, con valores de ejemplo.
+- La imagen no contiene secretos y `.dockerignore` impide que `.env` y sus variantes entren al contexto de construcción.
+- Los tokens (`accessToken`, `WS_TOKEN`), las contraseñas, `DATABASE_PASSWORD` y `JWT_SECRET` no deben verse en ninguna captura.
+- La base de datos del contenedor no se publica en el equipo.
+- `DATABASE_SYNCHRONIZE=true` es solo para la práctica; en un despliegue real las tablas se gestionan con migraciones.
+- El límite `THROTTLE_LIMIT` se sube únicamente durante la medición y se restaura a 20.
+- La carga se ejecuta solo contra la instancia local propia.
+
+#### 12. Archivos relacionados con la implementación
+
+- `Dockerfile` y `.dockerignore`: imagen multietapa y contexto de construcción.
+- `docker-compose.yml` y `.env.docker.example`: API, base de datos y variables externas.
+- `src/notifications/`: gateway y servicio de notificaciones en tiempo real.
+- `src/enrollments/enrollments.service.ts` y `src/enrollments/enrollments.module.ts`: emisión del evento al crear una matrícula.
+- `src/main.ts`, `src/app.setup.ts` y `src/app.module.ts`: configuración leída de variables de entorno.
+- `scripts/load-test.mjs` y `scripts/ws-client.mjs`: carga básica y cliente WebSocket de prueba.
+- `docs/carga-basica.md`: resultados de la carga básica.
+- `test/notifications.e2e-spec.ts` y `test/helpers/test-app.ts`: pruebas e2e de la extensión.
+- `.github/workflows/quality.yml`: pasos de validación del compose y construcción de la imagen.
+- `package.json`: dependencias de WebSocket y los scripts `load:test` y `ws:client`.
+
+#### 13. Alcance de la Semana 15
+
+Esta etapa incorpora:
+
+- Imagen Docker multietapa, sin secretos, con usuario sin privilegios y comprobación de salud.
+- Entorno reproducible con Docker Compose y variables externas documentadas, sin valores reales en el repositorio.
+- Carga básica en la instancia local, con dos escenarios y observaciones.
+- Una única extensión mínima con WebSocket, con su prueba y su documentación.
+
+**Fuera del alcance:** despliegue en un servidor o nube, orquestación (Kubernetes), certificado TLS, migraciones de base de datos, pruebas de estrés o de carga sostenida, escalado y otras extensiones además de la de WebSocket.
+
+## Avance de Etapa 4 — Semana 15: despliegue reproducible y extensión mínima
+
+Este avance reúne las Sesiones 29 y 30.
+
+| Requisito del avance | Estado | Dónde está |
+|---|---|---|
+| La API se construye mediante una imagen Docker multietapa | Implementado | `Dockerfile` (etapas `build` y `runtime`) |
+| Variables y secretos externos y documentados, sin valores reales | Implementado | `.env.docker.example`, `docker-compose.yml` y la sección 4 |
+| Guía reproducible para ejecutar la aplicación y sus dependencias | Implementado | Sección 5 |
+| Carga básica en un entorno autorizado, con observaciones | Implementado | `scripts/load-test.mjs`, `docs/carga-basica.md` y la sección 6 |
+| Una sola extensión mínima (WebSocket) | Implementado | `src/notifications/` y la sección 7 |
+| La extensión tiene prueba y está documentada | Implementado | `test/notifications.e2e-spec.ts` y las secciones 7 y 8 |
+| Complementarias: compilación, integración continua y README | Implementado | `quality.yml`, sección 10 y este README |
+
+El estado de cada requisito se confirma con las capturas de `evidencias/actuacion17/`, que deben mostrar los resultados reales de la ejecución.
+
+### Demostración
+
+1. Construir la imagen y levantar el entorno con `docker compose --env-file .env.docker up -d`; mostrar `db` y `api` en `healthy` y las tres respuestas (`200`, `200` y `404` en `/docs`).
+2. Mostrar en `docker-compose.yml` y `.env.docker.example` que solo hay referencias y valores de ejemplo, y en `git status` que `.env.docker` no aparece.
+3. Ejecutar `npm run load:test` con el límite por defecto (se ven las respuestas `429` del limitador) y con el límite ampliado (latencias y estados).
+4. Conectar el cliente WebSocket, crear una matrícula y mostrar el evento `enrollment.created`; repetir con un token falso y mostrar `No autorizado`.
+5. Ejecutar `npm run test:e2e -- notifications` y mostrar el flujo de GitHub Actions en verde.
+
+### Evidencias del avance (`evidencias/actuacion17/`)
+
+| Código | Requisito o prueba | Qué muestra | Archivo |
+|---|---|---|---|
+| E01 | Compilación y conjuntos de pruebas | `npm run build`, `npm run lint`, `npm test` (17 suites y 81 pruebas) y `npm run test:e2e` (5 suites y 27 pruebas) en verde | `1. Compilación y pruebas arriba.png`, `1. Compilación y pruebas medio.png` y `1. Compilación y pruebas abajo.png` |
+| E02 | Imagen multietapa | El `Dockerfile` completo, con las etapas `build` y `runtime`, y el `.dockerignore` | `2. Dockerfile.png` y `2. dockerignore.png` |
+| E03 | Construcción de la imagen | El final de `docker compose build` y la imagen `coursehub-api:local` en `docker images` | `3. Construcción de la imagen.png` |
+| E04 | Contenedores en ejecución | `docker compose ps` con `db` y `api` en `healthy` | `4. Contenedores en ejecución.png` |
+| E05 | API en el contenedor | `GET /` y `GET /v1/courses` en `200`, y `GET /docs` en `404` | `5. API en el contenedor.png` |
+| E06 | Configuración externa | `.env.docker.example` y `docker-compose.yml` (solo referencias `${...}`), y `git status` sin `.env.docker` | `6. Configuración externa .env.docker.example.png`, `6. Configuración externa docker-compose.yml arriba.png`, `6. Configuración externa docker-compose.yml abajo.png` y `6. git status.png` |
+| E07 | Carga con el límite por defecto | Informe del escenario A: 185 respuestas `429` del limitador | `7. Carga limite por defecto.png` |
+| E08 | Carga con el límite ampliado | Informe del escenario B (`B: limite ampliado`) con p50, p95, p99 y estados | `8. Carga limite ampliado.png` |
+| E09 | Evento en tiempo real | Dos terminales: el cliente conectado y recibiendo `enrollment.created` al crear la matrícula, sin el token a la vista | `9. Evento en tiempo real.png` |
+| E10 | Conexión rechazada | `ws:client` con un token falso y la respuesta `No autorizado` | `10. Conexión rechazada.png` |
+| E11 | Pruebas de la extensión | `npm run test:e2e -- notifications` con sus 5 pruebas en verde | `11. Pruebas de la extensión.png` |
+| E12 | Flujo de integración continua | La ejecución de `quality` en verde y el trabajo **Verificar** desplegado, con los pasos de validación del compose y de construcción de la imagen | `12. GitHub Actions en verde por fuera.png` y `12. GitHub Actions en verde por dentro.png` |
+| E13 | README y resultados de carga | Vista previa de la sección de la Semana 15 con su tabla de evidencias, y `docs/carga-basica.md` con los resultados | `13. README Semana 15.png` y `13. Carga basica.png` |
+
+Las capturas deben mostrar el resultado real obtenido. Antes de entregar, se deben ocultar las contraseñas, los secretos y los tokens completos (`accessToken`, `WS_TOKEN`, `DATABASE_PASSWORD` y `JWT_SECRET`).
+
+### Criterio de éxito
+
+Una persona que no escribió la API puede levantarla con dos archivos de configuración propios, comprobar que responde, medir su comportamiento básico y recibir un evento en tiempo real, sin que ningún secreto viva en el repositorio ni en la imagen.
+
 ## Modelo de datos
 
 El modelo académico principal relaciona tres entidades:
@@ -3657,6 +4027,18 @@ evidencias/actuacion16/
 
 La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable). Documentan el contrato OpenAPI y su seguridad, el versionado `/v1`, la colección de solicitudes importada en Thunder Client y ejecutada en Postman contra la API local (con sus pruebas aprobadas), y los errores `401` y `403` manejados por el cliente.
 
+### Evidencias de la Semana 15 — Sesiones 29 y 30 y Avance de Etapa 4
+
+Toda la Semana 15 comparte una sola carpeta de capturas:
+
+```text
+evidencias/actuacion17/
+```
+
+La tabla de evidencias está en el [Avance de la Etapa 4](#avance-de-etapa-4--semana-15-despliegue-reproducible-y-extensión-mínima). Documentan la compilación y las pruebas, la imagen Docker multietapa, los contenedores en ejecución, la configuración externa sin secretos, la carga básica con dos escenarios, el evento en tiempo real y su rechazo con un token falso, las pruebas de la extensión y el flujo de GitHub Actions.
+
+Antes de entregar las capturas, se deben ocultar las contraseñas, los secretos y los tokens completos.
+
 ### Pruebas funcionales
 
 Las pruebas realizadas en las distintas etapas incluyen:
@@ -3892,6 +4274,24 @@ npm run lint
 npm test
 npm run test:e2e
 npm run build
+```
+
+Construir y ejecutar la API y PostgreSQL con Docker (requiere `.env.docker`, creado a partir de `.env.docker.example`):
+
+```powershell
+Copy-Item .env.docker.example .env.docker
+docker compose --env-file .env.docker build
+docker compose --env-file .env.docker up -d
+docker compose --env-file .env.docker ps
+docker compose --env-file .env.docker down
+```
+
+Medir la carga básica y probar la conexión WebSocket (con la API en ejecución):
+
+```powershell
+npm run load:test
+$env:WS_TOKEN="<accessToken>"; npm run ws:client
+npm run test:e2e -- notifications
 ```
 
 Consultar la documentación de la API con la aplicación en marcha (no disponible en producción):
@@ -4149,6 +4549,27 @@ Las funcionalidades incorporadas incluyen:
 Las evidencias de esta etapa se guardan en `evidencias/actuacion16/`. El detalle está en la sección [Semana 14](#semana-14-contrato-openapi-versionado-e-integración-con-un-cliente-sesiones-27-y-28) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-14-contrato-publicado-e-integración-verificable).
 
 No se generan clientes automáticamente ni se promete compatibilidad retroactiva más allá de la política de versionado.
+
+### Avance de la Semana 15 — Sesiones 29 y 30
+
+Se empaquetó la API para ejecutarla de forma reproducible, se midió con una carga básica y se añadió una extensión mínima.
+
+Las funcionalidades incorporadas incluyen:
+
+- `Dockerfile` multietapa (`build` y `runtime`), sin secretos, con usuario sin privilegios y comprobación de salud sobre `GET /`.
+- `.dockerignore` que excluye `.env`, `.env.*` (salvo los `.example`), pruebas, documentación y evidencias.
+- `docker-compose.yml` con la API y PostgreSQL, y variables externas leídas de `.env.docker` (excluido de Git; plantilla en `.env.docker.example`).
+- Guía reproducible: `GET /` y `GET /v1/courses` responden `200` y `GET /docs` responde `404` en el contenedor, porque corre en producción.
+- Límite de solicitudes configurable mediante `THROTTLE_TTL_MS` y `THROTTLE_LIMIT`.
+- Carga básica con `scripts/load-test.mjs` en dos escenarios: con el límite por defecto (185 de 200 respuestas `429`) y con el límite ampliado (200 de 200 en `200`, p50 de 10,4 ms y p99 de 60,1 ms).
+- Extensión mínima con WebSocket: el evento `enrollment.created` en el namespace `/notifications`, con autenticación por JWT y rechazo de tokens inválidos.
+- Pruebas e2e de la extensión (5) y cliente de prueba `scripts/ws-client.mjs`.
+- Pasos de GitHub Actions que validan `docker-compose.yml` y construyen la imagen Docker.
+- Resultado: 17 suites y 81 pruebas unitarias, y 5 suites y 27 pruebas e2e aprobadas; `npm run build` y `npm run lint` sin errores.
+
+Las evidencias de esta etapa se guardan en `evidencias/actuacion17/`. El detalle está en la sección [Semana 15](#semana-15-imagen-docker-carga-básica-y-extensión-en-tiempo-real-sesiones-29-y-30) y en el [Avance de Etapa 4](#avance-de-etapa-4--semana-15-despliegue-reproducible-y-extensión-mínima).
+
+No se incluyen despliegue en un servidor o nube, certificado TLS, migraciones ni pruebas de estrés.
 
 ## Licencia
 
